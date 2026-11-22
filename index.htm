@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ViewCash</title>
+
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: #0b0b12;
+            color: white;
+            min-height: 100vh;
+            padding-bottom: 90px;
+        }
+
+        .header {
+            padding: 25px 20px 15px;
+        }
+
+        .logo {
+            font-size: 28px;
+            font-weight: bold;
+        }
+
+        .subtitle {
+            color: #999;
+            margin-top: 5px;
+        }
+
+        .balance {
+            margin: 15px 20px;
+            padding: 22px;
+            border-radius: 20px;
+            background: linear-gradient(135deg, #6c35ff, #a52cff);
+        }
+
+        .balance-title {
+            opacity: .8;
+        }
+
+        .balance-value {
+            font-size: 34px;
+            font-weight: bold;
+            margin-top: 8px;
+        }
+
+        .section {
+            padding: 10px 20px;
+        }
+
+        .section h2 {
+            margin-bottom: 15px;
+        }
+
+        .video-card {
+            background: #171720;
+            border-radius: 18px;
+            overflow: hidden;
+            margin-bottom: 15px;
+        }
+
+        .video-card video {
+            width: 100%;
+            display: block;
+        }
+
+        .video-info {
+            padding: 15px;
+        }
+
+        .reward {
+            color: #62e36b;
+            font-weight: bold;
+            margin-top: 8px;
+        }
+
+        .watch-btn {
+            width: 100%;
+            margin-top: 12px;
+            border: none;
+            padding: 13px;
+            border-radius: 12px;
+            background: #7b3cff;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+        }
+
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 75px;
+            background: #15151e;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            border-top: 1px solid #292936;
+        }
+
+        .nav-item {
+            text-align: center;
+            color: #999;
+            font-size: 12px;
+        }
+
+        .nav-item span {
+            display: block;
+            font-size: 23px;
+            margin-bottom: 3px;
+        }
+
+        .active {
+            color: #9b62ff;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="header">
+        <div class="logo">🎬 ViewCash</div>
+        <div class="subtitle">Regarde des vidéos et gagne des récompenses</div>
+    </div>
+
+    <div class="balance">
+        <div class="balance-title">💰 Ton solde</div>
+        <div class="balance-value">0,00 €</div>
+    </div>
+
+    <div class="section">
+        <h2>🎬 Vidéos disponibles</h2>
+
+        <div class="video-card">
+
+            <video controls playsinline>
+                <source src="" type="video/mp4">
+            </video>
+
+            <div class="video-info">
+                <strong>Vidéo test</strong>
+
+                <div class="reward">
+                    💰 +0,10 €
+                </div>
+
+                <button class="watch-btn">
+                    ▶️ Regarder
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+    <div class="bottom-nav">
+
+        <div class="nav-item active">
+            <span>🏠</span>
+            Accueil
+        </div>
+
+        <div class="nav-item">
+            <span>🎬</span>
+            Vidéos
+        </div>
+
+        <div class="nav-item">
+            <span>👥</span>
+            Inviter
+        </div>
+
+        <div class="nav-item">
+            <span>🏆</span>
+            Top
+        </div>
+
+        <div class="nav-item">
+            <span>👤</span>
+            Profil
+        </div>
+
+    </div>
+
+    <script>
+        const tg = window.Telegram.WebApp;
+
+        tg.ready();
+        tg.expand();
+    </script>
+
+</body>
+</html>
