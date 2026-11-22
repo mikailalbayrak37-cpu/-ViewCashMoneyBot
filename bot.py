@@ -1,34 +1,51 @@
 import os
 import sqlite3
+import threading
+import hashlib
+import hmac
+import json
+from urllib.parse import parse_qsl
 
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from flask import Flask, jsonify, request, send_from_directory
+
+from telegram import (
+    Update,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    WebAppInfo,
+)
 from telegram.ext import (
     Application,
     CommandHandler,
-    CallbackQueryHandler,
     ContextTypes,
-    MessageHandler,
-    ConversationHandler,
-    filters,
 )
 
 TOKEN = os.getenv("TELEGRAM_TOKEN")
 ADMIN_ID = int(os.getenv("ADMIN_ID", "0"))
 
+WEBAPP_URL = os.getenv("WEBAPP_URL", "").rstrip("/")
+PORT = int(os.getenv("PORT", "8080"))
+
 DB = "bot.db"
 
-VIDEO, TITLE, REWARD = range(3)
+app = Flask(__name__, static_folder="static")
 
 
 # =========================
 # BASE DE DONNÉES
 # =========================
 
-def init_db():
+def get_db():
     conn = sqlite3.connect(DB)
-    cur = conn.cursor()
+    conn.row_factory = sqlite3.Row
+    return conn
 
-    cur.execute("""
+
+def init_db():
+
+    conn = get_db()
+
+    conn.execute("""
         CREATE TABLE IF NOT EXISTS users (
             user_id INTEGER PRIMARY KEY,
             balance REAL DEFAULT 0,
@@ -36,52 +53,67 @@ def init_db():
         )
     """)
 
-    cur.execute("""
+    conn.execute("""
         CREATE TABLE IF NOT EXISTS offers (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             title TEXT NOT NULL,
-            url TEXT,
-            reward REAL NOT NULL,
-            video_id TEXT
+            url TEXT NOT NULL,
+            reward REAL NOT NULL
         )
     """)
 
-    # Pour les anciennes bases
-    try:
-        cur.execute("ALTER TABLE offers ADD COLUMN video_id TEXT")
-    except sqlite3.OperationalError:
-        pass
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS completed (
+            user_id INTEGER,
+            offer_id INTEGER,
+            PRIMARY KEY (user_id, offer_id)
+        )
+    """)
 
     conn.commit()
     conn.close()
 
 
 def create_user(user_id, referral_id=None):
-    conn = sqlite3.connect(DB)
-    cur = conn.cursor()
 
-    cur.execute(
+    conn = get_db()
+
+    user = conn.execute(
         "SELECT user_id FROM users WHERE user_id = ?",
         (user_id,)
-    )
+    ).fetchone()
 
-    if cur.fetchone() is None:
-        cur.execute(
-            """
-            INSERT INTO users (user_id, balance, referral_id)
-            VALUES (?, ?, ?)
-            """,
-            (user_id, 0, referral_id)
-        )
+    if user is None:
+
+        valid_referral = None
 
         if referral_id and referral_id != user_id:
-            cur.execute(
+
+            ref = conn.execute(
+                "SELECT user_id FROM users WHERE user_id = ?",
+                (referral_id,)
+            ).fetchone()
+
+            if ref:
+                valid_referral = referral_id
+
+        conn.execute(
+            """
+            INSERT INTO users(user_id, balance, referral_id)
+            VALUES (?, 0, ?)
+            """,
+            (user_id, valid_referral)
+        )
+
+        if valid_referral:
+
+            conn.execute(
                 """
                 UPDATE users
                 SET balance = balance + 0.10
                 WHERE user_id = ?
                 """,
-                (referral_id,)
+                (valid_referral,)
             )
 
     conn.commit()
@@ -89,200 +121,395 @@ def create_user(user_id, referral_id=None):
 
 
 # =========================
-# /START
+# TELEGRAM WEB APP
 # =========================
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+def validate_webapp(init_data):
 
-    user_id = update.effective_user.id
-    referral_id = None
+    if not TOKEN or not init_data:
+        return None
 
-    if context.args:
-        try:
-            referral_id = int(context.args[0])
-        except ValueError:
-            referral_id = None
+    try:
 
-    create_user(user_id, referral_id)
+        data = dict(
+            parse_qsl(
+                init_data,
+                keep_blank_values=True
+            )
+        )
 
-    keyboard = [
-        [InlineKeyboardButton("🎬 Voir les offres", callback_data="offers")],
-        [InlineKeyboardButton("💰 Mon solde", callback_data="balance")],
-        [InlineKeyboardButton("👥 Parrainage", callback_data="referral")],
-        [InlineKeyboardButton("💸 Retrait", callback_data="withdraw")],
-        [InlineKeyboardButton("❓ Aide", callback_data="help")],
-    ]
+        received_hash = data.pop("hash", None)
 
-    await update.message.reply_text(
-        "🎬 Bienvenue sur ViewCash !\n\n"
-        "Découvre les offres disponibles et gagne des récompenses "
-        "lorsque les conditions des offres sont réellement remplies.",
-        reply_markup=InlineKeyboardMarkup(keyboard)
+        if not received_hash:
+            return None
+
+        check_string = "\n".join(
+            f"{key}={data[key]}"
+            for key in sorted(data)
+        )
+
+        secret_key = hmac.new(
+            b"WebAppData",
+            TOKEN.encode(),
+            hashlib.sha256
+        ).digest()
+
+        calculated_hash = hmac.new(
+            secret_key,
+            check_string.encode(),
+            hashlib.sha256
+        ).hexdigest()
+
+        if not hmac.compare_digest(
+            calculated_hash,
+            received_hash
+        ):
+            return None
+
+        user = json.loads(
+            data.get("user", "{}")
+        )
+
+        return int(user["id"])
+
+    except Exception:
+        return None
+
+
+def get_webapp_user():
+
+    init_data = request.headers.get(
+        "X-Telegram-Init-Data",
+        ""
+    )
+
+    user_id = validate_webapp(init_data)
+
+    if user_id:
+        create_user(user_id)
+
+    return user_id
+
+
+# =========================
+# MINI APPLICATION
+# =========================
+
+@app.route("/")
+def home():
+
+    return send_from_directory(
+        "static",
+        "index.html"
     )
 
 
-# =========================
-# OFFRES
-# =========================
+@app.route("/api/offers")
+def api_offers():
 
-async def videos(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = get_webapp_user()
 
-    user_id = update.effective_user.id
-    create_user(user_id)
+    conn = get_db()
 
-    conn = sqlite3.connect(DB)
-    cur = conn.cursor()
-
-    cur.execute("""
-        SELECT id, title, url, reward, video_id
+    offers = conn.execute(
+        """
+        SELECT id, title, url, reward
         FROM offers
         ORDER BY id DESC
-    """)
+        """
+    ).fetchall()
 
-    offers = cur.fetchall()
+    completed = set()
+
+    if user_id:
+
+        rows = conn.execute(
+            """
+            SELECT offer_id
+            FROM completed
+            WHERE user_id = ?
+            """,
+            (user_id,)
+        ).fetchall()
+
+        completed = {
+            row["offer_id"]
+            for row in rows
+        }
+
     conn.close()
 
-    if not offers:
-        text = (
-            "🎬 Offres disponibles\n\n"
-            "Aucune offre disponible pour le moment."
-        )
+    result = []
 
-        if update.callback_query:
-            await update.callback_query.answer()
-            await update.callback_query.message.reply_text(text)
-        else:
-            await update.message.reply_text(text)
+    for offer in offers:
 
-        return
+        result.append({
+            "id": offer["id"],
+            "title": offer["title"],
+            "url": offer["url"],
+            "reward": offer["reward"],
+            "completed": offer["id"] in completed
+        })
 
-    if update.callback_query:
-        await update.callback_query.answer()
-
-    for offer_id, title, url, reward, video_id in offers:
-
-        text = (
-            f"🎬 {title}\n\n"
-            f"💰 Récompense : {reward:.2f} €\n\n"
-        )
-
-        if video_id:
-            await update.effective_chat.send_video(
-                video=video_id,
-                caption=text
-            )
-        elif url:
-            keyboard = [
-                [
-                    InlineKeyboardButton(
-                        "🎬 Ouvrir l'offre",
-                        url=url
-                    )
-                ]
-            ]
-
-            await update.effective_chat.send_message(
-                text=text,
-                reply_markup=InlineKeyboardMarkup(keyboard)
-            )
-
-        keyboard = [
-            [
-                InlineKeyboardButton(
-                    "✅ J'ai terminé",
-                    callback_data=f"complete:{offer_id}"
-                )
-            ]
-        ]
-
-        await update.effective_chat.send_message(
-            "⚠️ Valide uniquement si les conditions de l'offre "
-            "ont réellement été remplies.",
-            reply_markup=InlineKeyboardMarkup(keyboard)
-        )
+    return jsonify({
+        "offers": result
+    })
 
 
-# =========================
-# VALIDATION
-# =========================
+@app.route("/api/me")
+def api_me():
 
-async def complete_offer(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = get_webapp_user()
 
-    query = update.callback_query
-    await query.answer()
+    if not user_id:
 
-    user_id = query.from_user.id
-    offer_id = int(query.data.split(":")[1])
+        return jsonify({
+            "ok": False,
+            "error": "Utilisateur Telegram non authentifié"
+        }), 401
 
-    create_user(user_id)
+    conn = get_db()
 
-    conn = sqlite3.connect(DB)
-    cur = conn.cursor()
+    user = conn.execute(
+        """
+        SELECT balance
+        FROM users
+        WHERE user_id = ?
+        """,
+        (user_id,)
+    ).fetchone()
 
-    cur.execute(
-        "SELECT title, reward FROM offers WHERE id = ?",
-        (offer_id,)
+    conn.close()
+
+    balance = user["balance"] if user else 0
+
+    bot_username = os.getenv(
+        "BOT_USERNAME",
+        "ViewCashBot"
     )
 
-    offer = cur.fetchone()
+    referral_link = (
+        f"https://t.me/"
+        f"{bot_username}"
+        f"?start={user_id}"
+    )
+
+    return jsonify({
+        "ok": True,
+        "user_id": user_id,
+        "balance": balance,
+        "referral_link": referral_link
+    })
+
+
+@app.route(
+    "/api/complete/<int:offer_id>",
+    methods=["POST"]
+)
+def complete_offer_webapp(offer_id):
+
+    user_id = get_webapp_user()
+
+    if not user_id:
+
+        return jsonify({
+            "ok": False,
+            "error": "Non authentifié"
+        }), 401
+
+    conn = get_db()
+
+    offer = conn.execute(
+        """
+        SELECT title, reward
+        FROM offers
+        WHERE id = ?
+        """,
+        (offer_id,)
+    ).fetchone()
 
     if not offer:
+
         conn.close()
-        await query.message.reply_text("❌ Offre introuvable.")
-        return
 
-    title, reward = offer
+        return jsonify({
+            "ok": False,
+            "error": "Offre introuvable"
+        }), 404
 
-    cur.execute(
+    already = conn.execute(
         """
-        SELECT 1 FROM completed
-        WHERE user_id = ? AND offer_id = ?
+        SELECT 1
+        FROM completed
+        WHERE user_id = ?
+        AND offer_id = ?
         """,
         (user_id, offer_id)
-    )
+    ).fetchone()
 
-    if cur.fetchone():
+    if already:
+
         conn.close()
-        await query.message.reply_text(
-            "⚠️ Cette offre a déjà été validée."
-        )
-        return
 
-    cur.execute(
-        """
-        CREATE TABLE IF NOT EXISTS completed (
-            user_id INTEGER,
-            offer_id INTEGER,
-            PRIMARY KEY (user_id, offer_id)
-        )
-        """
-    )
+        return jsonify({
+            "ok": False,
+            "error": "Cette offre a déjà été validée."
+        }), 400
 
-    cur.execute(
+    conn.execute(
         """
-        INSERT INTO completed (user_id, offer_id)
+        INSERT INTO completed(user_id, offer_id)
         VALUES (?, ?)
         """,
         (user_id, offer_id)
     )
 
-    cur.execute(
+    conn.execute(
         """
         UPDATE users
         SET balance = balance + ?
         WHERE user_id = ?
         """,
-        (reward, user_id)
+        (offer["reward"], user_id)
     )
 
     conn.commit()
+
+    user = conn.execute(
+        """
+        SELECT balance
+        FROM users
+        WHERE user_id = ?
+        """,
+        (user_id,)
+    ).fetchone()
+
     conn.close()
 
-    await query.message.reply_text(
-        f"✅ Offre enregistrée !\n\n"
-        f"🎬 {title}\n"
-        f"💰 +{reward:.2f} €"
+    return jsonify({
+        "ok": True,
+        "reward": offer["reward"],
+        "balance": user["balance"]
+    })
+
+
+# =========================
+# BOT TELEGRAM
+# =========================
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    user_id = update.effective_user.id
+
+    referral_id = None
+
+    if context.args:
+
+        try:
+            referral_id = int(context.args[0])
+        except:
+            referral_id = None
+
+    create_user(
+        user_id,
+        referral_id
     )
+
+    buttons = []
+
+    if WEBAPP_URL:
+
+        buttons.append([
+            InlineKeyboardButton(
+                "▶️ Ouvrir ViewCash",
+                web_app=WebAppInfo(
+                    url=WEBAPP_URL
+                )
+            )
+        ])
+
+    buttons.extend([
+        [
+            InlineKeyboardButton(
+                "🎬 Voir les offres",
+                callback_data="offers"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                "💰 Mon solde",
+                callback_data="balance"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                "👥 Parrainage",
+                callback_data="referral"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                "💸 Retrait",
+                callback_data="withdraw"
+            )
+        ]
+    ])
+
+    await update.message.reply_text(
+        "🎬 Bienvenue sur ViewCash !\n\n"
+        "Regarde les offres disponibles "
+        "et gagne des récompenses lorsque "
+        "les conditions sont réellement remplies.",
+        reply_markup=InlineKeyboardMarkup(buttons)
+    )
+
+
+# =========================
+# OFFRES TELEGRAM
+# =========================
+
+async def videos(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    conn = get_db()
+
+    offers = conn.execute(
+        """
+        SELECT id, title, url, reward
+        FROM offers
+        ORDER BY id DESC
+        """
+    ).fetchall()
+
+    conn.close()
+
+    if not offers:
+
+        await update.message.reply_text(
+            "🎬 Offres disponibles\n\n"
+            "Aucune offre disponible pour le moment."
+        )
+
+        return
+
+    for offer in offers:
+
+        keyboard = [
+            [
+                InlineKeyboardButton(
+                    "🎬 Ouvrir l'offre",
+                    url=offer["url"]
+                )
+            ]
+        ]
+
+        await update.message.reply_text(
+            f"🎬 {offer['title']}\n\n"
+            f"💰 Récompense : "
+            f"{offer['reward']:.2f} €",
+            reply_markup=InlineKeyboardMarkup(
+                keyboard
+            )
+        )
 
 
 # =========================
@@ -291,29 +518,28 @@ async def complete_offer(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
-    user_id = update.effective_user.id
-    create_user(user_id)
-
-    conn = sqlite3.connect(DB)
-    cur = conn.cursor()
-
-    cur.execute(
-        "SELECT balance FROM users WHERE user_id = ?",
-        (user_id,)
+    create_user(
+        update.effective_user.id
     )
 
-    result = cur.fetchone()
+    conn = get_db()
+
+    user = conn.execute(
+        """
+        SELECT balance
+        FROM users
+        WHERE user_id = ?
+        """,
+        (update.effective_user.id,)
+    ).fetchone()
+
     conn.close()
 
-    amount = result[0] if result else 0
+    amount = user["balance"] if user else 0
 
-    text = f"💰 Ton solde : {amount:.2f} €"
-
-    if update.callback_query:
-        await update.callback_query.answer()
-        await update.callback_query.message.reply_text(text)
-    else:
-        await update.message.reply_text(text)
+    await update.message.reply_text(
+        f"💰 Ton solde : {amount:.2f} €"
+    )
 
 
 # =========================
@@ -322,25 +548,25 @@ async def balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def referral(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
-    user_id = update.effective_user.id
-    create_user(user_id)
-
-    username = context.bot.username
-    link = f"https://t.me/{username}?start={user_id}"
-
-    text = (
-        "👥 Ton parrainage\n\n"
-        "Invite tes amis avec ton lien :\n\n"
-        f"{link}\n\n"
-        "💰 Tu reçois 0,10 € lorsqu'un nouvel utilisateur "
-        "rejoint le bot avec ton lien."
+    create_user(
+        update.effective_user.id
     )
 
-    if update.callback_query:
-        await update.callback_query.answer()
-        await update.callback_query.message.reply_text(text)
-    else:
-        await update.message.reply_text(text)
+    bot = await context.bot.get_me()
+
+    link = (
+        f"https://t.me/"
+        f"{bot.username}"
+        f"?start={update.effective_user.id}"
+    )
+
+    await update.message.reply_text(
+        "👥 Parrainage\n\n"
+        "Invite tes amis avec ton lien :\n\n"
+        f"{link}\n\n"
+        "💰 Tu reçois 0,10 € lorsqu'un "
+        "nouvel utilisateur rejoint le bot."
+    )
 
 
 # =========================
@@ -349,41 +575,168 @@ async def referral(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def withdraw(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
-    user_id = update.effective_user.id
-    create_user(user_id)
-
-    conn = sqlite3.connect(DB)
-    cur = conn.cursor()
-
-    cur.execute(
-        "SELECT balance FROM users WHERE user_id = ?",
-        (user_id,)
+    create_user(
+        update.effective_user.id
     )
 
-    result = cur.fetchone()
+    conn = get_db()
+
+    user = conn.execute(
+        """
+        SELECT balance
+        FROM users
+        WHERE user_id = ?
+        """,
+        (update.effective_user.id,)
+    ).fetchone()
+
     conn.close()
 
-    amount = result[0] if result else 0
+    amount = user["balance"] if user else 0
 
     if amount < 5:
-        text = (
+
+        await update.message.reply_text(
             "💸 Retrait\n\n"
             f"Ton solde : {amount:.2f} €\n\n"
-            "❌ Le retrait est disponible à partir de 5 €."
+            "❌ Retrait disponible à partir de 5 €."
         )
+
     else:
-        text = (
+
+        await update.message.reply_text(
             "💸 Retrait\n\n"
             f"Ton solde : {amount:.2f} €\n\n"
             "✅ Tu peux demander un retrait.\n"
-            "Contacte l'administrateur pour le traitement."
+            "Contacte l'administrateur."
         )
 
-    if update.callback_query:
-        await update.callback_query.answer()
-        await update.callback_query.message.reply_text(text)
-    else:
-        await update.message.reply_text(text)
+
+# =========================
+# AJOUTER UNE OFFRE
+# =========================
+
+async def add_offer(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    if update.effective_user.id != ADMIN_ID:
+
+        await update.message.reply_text(
+            "❌ Accès refusé."
+        )
+
+        return
+
+    if len(context.args) < 3:
+
+        await update.message.reply_text(
+            "Format :\n\n"
+            "/addoffer Titre URL récompense\n\n"
+            "Exemple :\n"
+            "/addoffer Video https://example.com/video.mp4 0.10"
+        )
+
+        return
+
+    try:
+
+        reward = float(
+            context.args[-1].replace(",", ".")
+        )
+
+    except:
+
+        await update.message.reply_text(
+            "❌ Récompense invalide."
+        )
+
+        return
+
+    url = context.args[-2]
+
+    title = " ".join(
+        context.args[:-2]
+    )
+
+    try:
+
+        conn = get_db()
+
+        conn.execute(
+            """
+            INSERT INTO offers(title, url, reward)
+            VALUES (?, ?, ?)
+            """,
+            (
+                title,
+                url,
+                reward
+            )
+        )
+
+        conn.commit()
+        conn.close()
+
+        await update.message.reply_text(
+            "✅ Offre ajoutée !\n\n"
+            f"🎬 {title}\n"
+            f"💰 {reward:.2f} €"
+        )
+
+    except Exception as e:
+
+        await update.message.reply_text(
+            f"❌ Erreur : {e}"
+        )
+
+
+# =========================
+# ADMIN OFFRES
+# =========================
+
+async def adminoffers(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    if update.effective_user.id != ADMIN_ID:
+
+        await update.message.reply_text(
+            "❌ Accès refusé."
+        )
+
+        return
+
+    conn = get_db()
+
+    offers = conn.execute(
+        """
+        SELECT id, title, reward, url
+        FROM offers
+        ORDER BY id DESC
+        """
+    ).fetchall()
+
+    conn.close()
+
+    if not offers:
+
+        await update.message.reply_text(
+            "📋 Aucune offre."
+        )
+
+        return
+
+    text = "📋 Offres disponibles :\n\n"
+
+    for offer in offers:
+
+        text += (
+            f"#{offer['id']} — "
+            f"{offer['title']}\n"
+            f"💰 {offer['reward']:.2f} €\n"
+            f"{offer['url']}\n\n"
+        )
+
+    await update.message.reply_text(
+        text
+    )
 
 
 # =========================
@@ -392,193 +745,29 @@ async def withdraw(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
-    text = (
+    await update.message.reply_text(
         "❓ Aide\n\n"
-        "/start — Commencer\n"
+        "/start — Accueil\n"
         "/videos — Voir les offres\n"
-        "/balance — Voir le solde\n"
+        "/balance — Mon solde\n"
         "/referral — Parrainage\n"
         "/withdraw — Retrait\n"
-        "/help — Aide\n\n"
-        "👑 Commandes administrateur :\n"
-        "/addvideo — Ajouter une vidéo\n"
-        "/adminoffers — Voir les offres"
+        "/help — Aide"
     )
-
-    if update.callback_query:
-        await update.callback_query.answer()
-        await update.callback_query.message.reply_text(text)
-    else:
-        await update.message.reply_text(text)
 
 
 # =========================
-# ADMIN : AJOUT VIDÉO
+# SERVEUR WEB
 # =========================
 
-async def addvideo_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+def run_web():
 
-    if update.effective_user.id != ADMIN_ID:
-        await update.message.reply_text("❌ Accès refusé.")
-        return ConversationHandler.END
-
-    await update.message.reply_text(
-        "🎬 Envoie-moi maintenant la vidéo."
+    app.run(
+        host="0.0.0.0",
+        port=PORT,
+        debug=False,
+        use_reloader=False
     )
-
-    return VIDEO
-
-
-async def receive_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
-
-    if update.effective_user.id != ADMIN_ID:
-        return ConversationHandler.END
-
-    if not update.message.video:
-        await update.message.reply_text(
-            "❌ Envoie une vidéo Telegram."
-        )
-        return VIDEO
-
-    context.user_data["video_id"] = update.message.video.file_id
-
-    await update.message.reply_text(
-        "✅ Vidéo reçue !\n\n"
-        "Quel est le titre de l'offre ?"
-    )
-
-    return TITLE
-
-
-async def receive_title(update: Update, context: ContextTypes.DEFAULT_TYPE):
-
-    context.user_data["title"] = update.message.text
-
-    await update.message.reply_text(
-        "💰 Quelle récompense ?\n\n"
-        "Exemple : 0.10"
-    )
-
-    return REWARD
-
-
-async def receive_reward(update: Update, context: ContextTypes.DEFAULT_TYPE):
-
-    try:
-        reward = float(update.message.text.replace(",", "."))
-    except ValueError:
-        await update.message.reply_text(
-            "❌ Montant incorrect.\n"
-            "Exemple : 0.10"
-        )
-        return REWARD
-
-    title = context.user_data["title"]
-    video_id = context.user_data["video_id"]
-
-    conn = sqlite3.connect(DB)
-    cur = conn.cursor()
-
-    cur.execute(
-        """
-        INSERT INTO offers (title, url, reward, video_id)
-        VALUES (?, ?, ?, ?)
-        """,
-        (title, None, reward, video_id)
-    )
-
-    conn.commit()
-    conn.close()
-
-    context.user_data.clear()
-
-    await update.message.reply_text(
-        "✅ Offre créée !\n\n"
-        f"🎬 {title}\n"
-        f"💰 Récompense : {reward:.2f} €\n\n"
-        "Les utilisateurs peuvent maintenant la voir avec /videos."
-    )
-
-    return ConversationHandler.END
-
-
-async def cancel_addvideo(update: Update, context: ContextTypes.DEFAULT_TYPE):
-
-    context.user_data.clear()
-
-    await update.message.reply_text(
-        "❌ Ajout de vidéo annulé."
-    )
-
-    return ConversationHandler.END
-
-
-# =========================
-# ADMIN : LISTE DES OFFRES
-# =========================
-
-async def adminoffers(update: Update, context: ContextTypes.DEFAULT_TYPE):
-
-    if update.effective_user.id != ADMIN_ID:
-        await update.message.reply_text("❌ Accès refusé.")
-        return
-
-    conn = sqlite3.connect(DB)
-    cur = conn.cursor()
-
-    cur.execute(
-        """
-        SELECT id, title, reward
-        FROM offers
-        ORDER BY id DESC
-        """
-    )
-
-    offers = cur.fetchall()
-    conn.close()
-
-    if not offers:
-        await update.message.reply_text(
-            "📋 Aucune offre."
-        )
-        return
-
-    text = "📋 Offres actuelles :\n\n"
-
-    for offer_id, title, reward in offers:
-        text += (
-            f"#{offer_id} — {title}\n"
-            f"💰 {reward:.2f} €\n\n"
-        )
-
-    await update.message.reply_text(text)
-
-
-# =========================
-# BOUTONS
-# =========================
-
-async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-
-    query = update.callback_query
-
-    if query.data == "offers":
-        await videos(update, context)
-
-    elif query.data == "balance":
-        await balance(update, context)
-
-    elif query.data == "referral":
-        await referral(update, context)
-
-    elif query.data == "withdraw":
-        await withdraw(update, context)
-
-    elif query.data == "help":
-        await help_command(update, context)
-
-    elif query.data.startswith("complete:"):
-        await complete_offer(update, context)
 
 
 # =========================
@@ -588,61 +777,60 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def main():
 
     if not TOKEN:
+
         raise RuntimeError(
             "TELEGRAM_TOKEN est manquant."
         )
 
     init_db()
 
-    app = Application.builder().token(TOKEN).build()
+    threading.Thread(
+        target=run_web,
+        daemon=True
+    ).start()
 
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("videos", videos))
-    app.add_handler(CommandHandler("balance", balance))
-    app.add_handler(CommandHandler("referral", referral))
-    app.add_handler(CommandHandler("withdraw", withdraw))
-    app.add_handler(CommandHandler("help", help_command))
-
-    app.add_handler(CommandHandler("adminoffers", adminoffers))
-
-    video_conversation = ConversationHandler(
-        entry_points=[
-            CommandHandler("addvideo", addvideo_start)
-        ],
-        states={
-            VIDEO: [
-                MessageHandler(
-                    filters.VIDEO,
-                    receive_video
-                )
-            ],
-            TITLE: [
-                MessageHandler(
-                    filters.TEXT & ~filters.COMMAND,
-                    receive_title
-                )
-            ],
-            REWARD: [
-                MessageHandler(
-                    filters.TEXT & ~filters.COMMAND,
-                    receive_reward
-                )
-            ],
-        },
-        fallbacks=[
-            CommandHandler("cancel", cancel_addvideo)
-        ],
+    application = (
+        Application
+        .builder()
+        .token(TOKEN)
+        .build()
     )
 
-    app.add_handler(video_conversation)
+    application.add_handler(
+        CommandHandler("start", start)
+    )
 
-    app.add_handler(
-        CallbackQueryHandler(button_handler)
+    application.add_handler(
+        CommandHandler("videos", videos)
+    )
+
+    application.add_handler(
+        CommandHandler("balance", balance)
+    )
+
+    application.add_handler(
+        CommandHandler("referral", referral)
+    )
+
+    application.add_handler(
+        CommandHandler("withdraw", withdraw)
+    )
+
+    application.add_handler(
+        CommandHandler("help", help_command)
+    )
+
+    application.add_handler(
+        CommandHandler("addoffer", add_offer)
+    )
+
+    application.add_handler(
+        CommandHandler("adminoffers", adminoffers)
     )
 
     print("ViewCashBot démarré.")
 
-    app.run_polling()
+    application.run_polling()
 
 
 if __name__ == "__main__":
