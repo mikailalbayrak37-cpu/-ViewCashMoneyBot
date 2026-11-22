@@ -1,202 +1,504 @@
 <!DOCTYPE html>
 <html lang="fr">
+
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ViewCash</title>
 
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+<meta charset="UTF-8">
 
-    <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
+<meta
+name="viewport"
+content="width=device-width, initial-scale=1.0"
+>
 
-        body {
-            font-family: Arial, sans-serif;
-            background: #0b0b12;
-            color: white;
-            min-height: 100vh;
-            padding-bottom: 90px;
-        }
+<title>ViewCash</title>
 
-        .header {
-            padding: 25px 20px 15px;
-        }
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
 
-        .logo {
-            font-size: 28px;
-            font-weight: bold;
-        }
+<style>
 
-        .subtitle {
-            color: #999;
-            margin-top: 5px;
-        }
+* {
+    box-sizing: border-box;
+}
 
-        .balance {
-            margin: 15px 20px;
-            padding: 22px;
-            border-radius: 20px;
-            background: linear-gradient(135deg, #6c35ff, #a52cff);
-        }
+body {
+    margin: 0;
+    background: #0b0b12;
+    color: white;
+    font-family: Arial, sans-serif;
+    padding-bottom: 90px;
+}
 
-        .balance-title {
-            opacity: .8;
-        }
+header {
+    padding: 25px 18px 10px;
+}
 
-        .balance-value {
-            font-size: 34px;
-            font-weight: bold;
-            margin-top: 8px;
-        }
+.logo {
+    font-size: 30px;
+    font-weight: bold;
+}
 
-        .section {
-            padding: 10px 20px;
-        }
+.subtitle {
+    color: #999;
+    margin-top: 5px;
+}
 
-        .section h2 {
-            margin-bottom: 15px;
-        }
+.card {
+    margin: 14px;
+    padding: 18px;
+    border-radius: 20px;
+    background: #171722;
+    border: 1px solid #292936;
+}
 
-        .video-card {
-            background: #171720;
-            border-radius: 18px;
-            overflow: hidden;
-            margin-bottom: 15px;
-        }
+.balance-title {
+    color: #aaa;
+}
 
-        .video-card video {
-            width: 100%;
-            display: block;
-        }
+.balance {
+    font-size: 34px;
+    font-weight: bold;
+    margin-top: 5px;
+}
 
-        .video-info {
-            padding: 15px;
-        }
+.tabs {
+    display: flex;
+    gap: 8px;
+    padding: 5px 14px;
+}
 
-        .reward {
-            color: #62e36b;
-            font-weight: bold;
-            margin-top: 8px;
-        }
+.tab {
+    border: 0;
+    padding: 12px 17px;
+    border-radius: 14px;
+    background: #20202c;
+    color: white;
+    font-size: 15px;
+}
 
-        .watch-btn {
-            width: 100%;
-            margin-top: 12px;
-            border: none;
-            padding: 13px;
-            border-radius: 12px;
-            background: #7b3cff;
-            color: white;
-            font-size: 16px;
-            font-weight: bold;
-        }
+.tab.active {
+    background: #8c3cff;
+}
 
-        .bottom-nav {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            height: 75px;
-            background: #15151e;
-            display: flex;
-            justify-content: space-around;
-            align-items: center;
-            border-top: 1px solid #292936;
-        }
+.offer-title {
+    font-size: 19px;
+    font-weight: bold;
+}
 
-        .nav-item {
-            text-align: center;
-            color: #999;
-            font-size: 12px;
-        }
+.reward {
+    color: #ffd34d;
+    font-weight: bold;
+    margin-top: 8px;
+}
 
-        .nav-item span {
-            display: block;
-            font-size: 23px;
-            margin-bottom: 3px;
-        }
+.btn {
+    width: 100%;
+    padding: 14px;
+    margin-top: 12px;
+    border: 0;
+    border-radius: 13px;
+    font-size: 16px;
+    font-weight: bold;
+}
 
-        .active {
-            color: #9b62ff;
-        }
-    </style>
+.open {
+    background: white;
+    color: black;
+}
+
+.complete {
+    background: #8c3cff;
+    color: white;
+}
+
+.complete:disabled {
+    opacity: .4;
+}
+
+.empty {
+    text-align: center;
+    color: #999;
+    padding: 40px 15px;
+}
+
+.bottom {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+
+    display: flex;
+    justify-content: space-around;
+
+    padding: 12px;
+
+    background: #15151f;
+    border-top: 1px solid #292936;
+}
+
+.bottom button {
+    background: none;
+    border: none;
+    color: #aaa;
+    font-size: 12px;
+}
+
+.bottom b {
+    display: block;
+    font-size: 22px;
+}
+
+</style>
+
 </head>
 
 <body>
 
-    <div class="header">
-        <div class="logo">🎬 ViewCash</div>
-        <div class="subtitle">Regarde des vidéos et gagne des récompenses</div>
-    </div>
+<header>
 
-    <div class="balance">
-        <div class="balance-title">💰 Ton solde</div>
-        <div class="balance-value">0,00 €</div>
-    </div>
+<div class="logo">
+🎬 ViewCash
+</div>
 
-    <div class="section">
-        <h2>🎬 Vidéos disponibles</h2>
+<div class="subtitle">
+Regarde des vidéos et gagne des récompenses
+</div>
 
-        <div class="video-card">
+</header>
 
-            <video controls playsinline>
-                <source src="" type="video/mp4">
-            </video>
 
-            <div class="video-info">
-                <strong>Vidéo test</strong>
+<div class="card">
 
-                <div class="reward">
-                    💰 +0,10 €
-                </div>
+<div class="balance-title">
+💰 Mon solde
+</div>
 
-                <button class="watch-btn">
-                    ▶️ Regarder
-                </button>
+<div
+id="balance"
+class="balance"
+>
+0,00 €
+</div>
+
+</div>
+
+
+<div class="tabs">
+
+<button
+class="tab active"
+onclick="showOffers()"
+>
+🎬 Vidéos
+</button>
+
+<button
+class="tab"
+onclick="showReferral()"
+>
+👥 Inviter
+</button>
+
+</div>
+
+
+<main id="content"></main>
+
+
+<div class="bottom">
+
+<button onclick="showOffers()">
+<b>⌂</b>
+Accueil
+</button>
+
+<button onclick="showOffers()">
+<b>☷</b>
+Tâches
+</button>
+
+<button onclick="showReferral()">
+<b>♙</b>
+Parrainage
+</button>
+
+</div>
+
+
+<script>
+
+const tg = window.Telegram.WebApp;
+
+tg.ready();
+tg.expand();
+
+
+function headers() {
+
+    return {
+        "X-Telegram-Init-Data": tg.initData
+    };
+
+}
+
+
+async function loadUser() {
+
+    const response =
+        await fetch(
+            "/api/me",
+            {
+                headers: headers()
+            }
+        );
+
+    if (!response.ok)
+        return;
+
+    const data =
+        await response.json();
+
+    document.getElementById(
+        "balance"
+    ).textContent =
+        Number(data.balance)
+        .toFixed(2)
+        .replace(".", ",")
+        + " €";
+}
+
+
+async function showOffers() {
+
+    const content =
+        document.getElementById(
+            "content"
+        );
+
+    const response =
+        await fetch(
+            "/api/offers",
+            {
+                headers: headers()
+            }
+        );
+
+    const data =
+        await response.json();
+
+    if (!data.offers ||
+        data.offers.length === 0) {
+
+        content.innerHTML =
+            `
+            <div class="empty">
+
+                🎬<br><br>
+
+                Aucune offre disponible
+                pour le moment.
+
             </div>
+            `;
+
+        return;
+    }
+
+
+    content.innerHTML =
+        data.offers.map(
+            offer => {
+
+                return `
+                <div class="card">
+
+                    <div class="offer-title">
+
+                        🎬
+                        ${escapeHtml(
+                            offer.title
+                        )}
+
+                    </div>
+
+                    <div class="reward">
+
+                        💰
+                        +${Number(
+                            offer.reward
+                        ).toFixed(2)} €
+
+                    </div>
+
+
+                    <button
+                        class="btn open"
+                        onclick="openOffer(
+                            '${escapeAttr(
+                                offer.url
+                            )}'
+                        )"
+                    >
+
+                        ▶️ Ouvrir
+
+                    </button>
+
+
+                    <button
+                        class="btn complete"
+                        ${offer.completed
+                            ? "disabled"
+                            : ""}
+                        onclick="completeOffer(
+                            ${offer.id}
+                        )"
+                    >
+
+                        ${
+                            offer.completed
+                            ? "✅ Déjà validée"
+                            : "✅ J'ai terminé"
+                        }
+
+                    </button>
+
+                </div>
+                `;
+
+            }
+        ).join("");
+
+}
+
+
+function openOffer(url) {
+
+    window.open(
+        url,
+        "_blank"
+    );
+
+}
+
+
+async function completeOffer(id) {
+
+    const response =
+        await fetch(
+            "/api/complete/" + id,
+            {
+                method: "POST",
+                headers: headers()
+            }
+        );
+
+    const data =
+        await response.json();
+
+
+    if (!response.ok) {
+
+        alert(
+            data.error ||
+            "Erreur"
+        );
+
+        return;
+    }
+
+
+    await loadUser();
+
+    await showOffers();
+
+}
+
+
+async function showReferral() {
+
+    const response =
+        await fetch(
+            "/api/me",
+            {
+                headers: headers()
+            }
+        );
+
+    const data =
+        await response.json();
+
+
+    document.getElementById(
+        "content"
+    ).innerHTML = `
+
+        <div class="card">
+
+            <h2>
+                👥 Parrainage
+            </h2>
+
+            <p>
+                Invite tes amis
+                avec ton lien.
+            </p>
+
+            <p
+                style="
+                word-break:break-all;
+                color:#aaa;
+                "
+            >
+
+                ${data.referral_link}
+
+            </p>
 
         </div>
-    </div>
 
-    <div class="bottom-nav">
+    `;
 
-        <div class="nav-item active">
-            <span>🏠</span>
-            Accueil
-        </div>
+}
 
-        <div class="nav-item">
-            <span>🎬</span>
-            Vidéos
-        </div>
 
-        <div class="nav-item">
-            <span>👥</span>
-            Inviter
-        </div>
+function escapeHtml(text) {
 
-        <div class="nav-item">
-            <span>🏆</span>
-            Top
-        </div>
+    return String(text)
+        .replace(
+            /[&<>"']/g,
+            function(char) {
 
-        <div class="nav-item">
-            <span>👤</span>
-            Profil
-        </div>
+                return {
+                    "&": "&amp;",
+                    "<": "&lt;",
+                    ">": "&gt;",
+                    '"': "&quot;",
+                    "'": "&#039;"
+                }[char];
 
-    </div>
+            }
+        );
 
-    <script>
-        const tg = window.Telegram.WebApp;
+}
 
-        tg.ready();
-        tg.expand();
-    </script>
+
+function escapeAttr(text) {
+
+    return String(text)
+        .replace(
+            /'/g,
+            "\\'"
+        );
+
+}
+
+
+loadUser();
+
+showOffers();
+
+</script>
 
 </body>
+
 </html>
