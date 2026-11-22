@@ -5,7 +5,9 @@ import hmac
 import hashlib
 import sqlite3
 import threading
+import mimetypes
 
+from pathlib import Path
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs, parse_qsl, unquote
 
@@ -40,6 +42,8 @@ COOLDOWN_SECONDS = 10 * 60 * 60
 
 MIN_WITHDRAWAL = 500.0
 
+DEFAULT_REWARD = 0.10
+
 
 # ============================================================
 # DATABASE
@@ -52,6 +56,7 @@ def db():
 
 
 def init_db():
+
     connection = db()
     cursor = connection.cursor()
 
@@ -115,27 +120,37 @@ def init_db():
 # ============================================================
 
 def create_user(user_id, username=None, referral_id=None):
+
     connection = db()
     cursor = connection.cursor()
 
     cursor.execute(
-        "SELECT user_id FROM users WHERE user_id = ?",
+        """
+        SELECT user_id
+        FROM users
+        WHERE user_id = ?
+        """,
         (user_id,)
     )
 
     existing = cursor.fetchone()
 
     if existing:
+
         cursor.execute(
             """
             UPDATE users
             SET username = ?
             WHERE user_id = ?
             """,
-            (username, user_id)
+            (
+                username,
+                user_id
+            )
         )
 
     else:
+
         cursor.execute(
             """
             INSERT INTO users(
@@ -153,16 +168,30 @@ def create_user(user_id, username=None, referral_id=None):
             )
         )
 
+        # Bonus de parrainage
         if referral_id and referral_id != user_id:
 
             cursor.execute(
                 """
-                UPDATE users
-                SET balance = balance + 0.10
+                SELECT user_id
+                FROM users
                 WHERE user_id = ?
                 """,
                 (referral_id,)
             )
+
+            referrer = cursor.fetchone()
+
+            if referrer:
+
+                cursor.execute(
+                    """
+                    UPDATE users
+                    SET balance = balance + 0.10
+                    WHERE user_id = ?
+                    """,
+                    (referral_id,)
+                )
 
     cursor.execute(
         """
@@ -185,6 +214,7 @@ def create_user(user_id, username=None, referral_id=None):
 
 
 def get_user(user_id):
+
     connection = db()
     cursor = connection.cursor()
 
@@ -209,6 +239,7 @@ def get_user(user_id):
 # ============================================================
 
 def get_cycle(user_id):
+
     connection = db()
     cursor = connection.cursor()
 
@@ -249,6 +280,8 @@ def refresh_cycle_if_needed(user_id):
 
     if not row:
 
+        now = int(time.time())
+
         cursor.execute(
             """
             INSERT INTO user_cycles(
@@ -261,7 +294,7 @@ def refresh_cycle_if_needed(user_id):
             """,
             (
                 user_id,
-                int(time.time())
+                now
             )
         )
 
@@ -272,9 +305,15 @@ def refresh_cycle_if_needed(user_id):
 
     now = int(time.time())
 
+    cooldown_finished = (
+        now >=
+        row["started_at"] +
+        COOLDOWN_SECONDS
+    )
+
     if (
         row["completed_count"] >= VIDEOS_PER_CYCLE
-        and now >= row["started_at"] + COOLDOWN_SECONDS
+        and cooldown_finished
     ):
 
         cursor.execute(
@@ -294,6 +333,125 @@ def refresh_cycle_if_needed(user_id):
 
         connection.commit()
 
+    connection.close()
+
+
+# ============================================================
+# VIDEO FILES
+# ============================================================
+
+def get_local_video_files():
+
+    files = list(
+        Path(".").glob("video_*.mp4")
+    )
+
+    files = [
+        file
+        for file in files
+        if file.is_file()
+    ]
+
+    files.sort(
+        key=lambda file: file.name.lower()
+    )
+
+    return files
+
+
+def sync_local_videos():
+
+    """
+    Détecte automatiquement les fichiers :
+
+        video_01.mp4
+        video_02.mp4
+        video_03.mp4
+        ...
+
+    et crée/met à jour les offres correspondantes.
+    """
+
+    connection = db()
+    cursor = connection.cursor()
+
+    video_files = get_local_video_files()
+
+    print(
+        f"🎬 {len(video_files)} vidéo(s) trouvée(s) sur le serveur."
+    )
+
+    for video_file in video_files:
+
+        filename = video_file.name
+
+        video_url = "/" + filename
+
+        title = (
+            video_file.stem
+            .replace("_", " ")
+            .title()
+        )
+
+        cursor.execute(
+            """
+            SELECT *
+            FROM offers
+            WHERE video_url = ?
+            """,
+            (video_url,)
+        )
+
+        existing = cursor.fetchone()
+
+        if existing:
+
+            cursor.execute(
+                """
+                UPDATE offers
+                SET
+                    title = ?,
+                    url = ?,
+                    active = 1
+                WHERE id = ?
+                """,
+                (
+                    title,
+                    video_url,
+                    existing["id"]
+                )
+            )
+
+            print(
+                f"🔄 Offre mise à jour : {filename}"
+            )
+
+        else:
+
+            cursor.execute(
+                """
+                INSERT INTO offers(
+                    title,
+                    url,
+                    reward,
+                    video_url,
+                    active
+                )
+                VALUES (?, ?, ?, ?, 1)
+                """,
+                (
+                    title,
+                    video_url,
+                    DEFAULT_REWARD,
+                    video_url
+                )
+            )
+
+            print(
+                f"✅ Offre créée : {filename}"
+            )
+
+    connection.commit()
     connection.close()
 
 
@@ -381,7 +539,10 @@ def get_available_offers(user_id):
         completed = cursor.fetchone()
 
         if not completed:
-            result.append(dict(offer))
+
+            result.append(
+                dict(offer)
+            )
 
     connection.close()
 
@@ -392,7 +553,10 @@ def get_available_offers(user_id):
 # TELEGRAM /START
 # ============================================================
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def start(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE
+):
 
     user = update.effective_user
 
@@ -401,7 +565,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if context.args:
 
         try:
-            referral_id = int(context.args[0])
+            referral_id = int(
+                context.args[0]
+            )
+
         except Exception:
             referral_id = None
 
@@ -489,9 +656,7 @@ async def addoffer(
         await update.message.reply_text(
             "❌ Format incorrect.\n\n"
             "Utilise :\n"
-            "/addoffer Titre URL Récompense VIDEO\n\n"
-            "Exemple :\n"
-            "/addoffer MaVideo https://google.com 0.10 https://www.tiktok.com/@user/video/123"
+            "/addoffer Titre URL Récompense VIDEO"
         )
 
         return
@@ -501,6 +666,7 @@ async def addoffer(
     for i, value in enumerate(args):
 
         try:
+
             float(
                 value.replace(",", ".")
             )
@@ -524,7 +690,9 @@ async def addoffer(
         args[:reward_index - 1]
     )
 
-    url = args[reward_index - 1]
+    url = args[
+        reward_index - 1
+    ]
 
     try:
 
@@ -592,16 +760,23 @@ async def addoffer(
 def validate_telegram_data(init_data):
 
     if not init_data:
-        print("Telegram validation: initData vide")
+
+        print(
+            "Telegram validation: initData vide"
+        )
+
         return None
 
     if not TOKEN:
-        print("Telegram validation: TELEGRAM_TOKEN manquant")
+
+        print(
+            "Telegram validation: TELEGRAM_TOKEN manquant"
+        )
+
         return None
 
     try:
 
-        # Telegram WebApp envoie une query string.
         parsed_data = dict(
             parse_qsl(
                 init_data,
@@ -624,7 +799,9 @@ def validate_telegram_data(init_data):
 
         data_check_string = "\n".join(
             f"{key}={parsed_data[key]}"
-            for key in sorted(parsed_data.keys())
+            for key in sorted(
+                parsed_data.keys()
+            )
         )
 
         secret_key = hmac.new(
@@ -803,6 +980,169 @@ class WebHandler(BaseHTTPRequestHandler):
         self.end_headers()
 
     # ========================================================
+    # STATIC VIDEO
+    # ========================================================
+
+    def serve_video(
+        self,
+        file_path
+    ):
+
+        if not file_path.exists():
+            return False
+
+        if not file_path.is_file():
+            return False
+
+        if file_path.suffix.lower() != ".mp4":
+            return False
+
+        try:
+
+            file_size = file_path.stat().st_size
+
+            range_header = self.headers.get(
+                "Range"
+            )
+
+            start = 0
+            end = file_size - 1
+
+            if range_header:
+
+                try:
+
+                    range_value = (
+                        range_header
+                        .replace("bytes=", "")
+                        .strip()
+                    )
+
+                    start_text, end_text = (
+                        range_value.split(
+                            "-",
+                            1
+                        )
+                    )
+
+                    if start_text:
+
+                        start = int(
+                            start_text
+                        )
+
+                    if end_text:
+
+                        end = int(
+                            end_text
+                        )
+
+                    else:
+
+                        end = file_size - 1
+
+                    if start < 0:
+                        start = 0
+
+                    if end >= file_size:
+                        end = file_size - 1
+
+                    if start > end:
+                        raise ValueError
+
+                    length = end - start + 1
+
+                    self.send_response(206)
+
+                    self.send_header(
+                        "Content-Range",
+                        f"bytes {start}-{end}/{file_size}"
+                    )
+
+                except Exception:
+
+                    self.send_response(416)
+
+                    self.send_header(
+                        "Content-Range",
+                        f"bytes */{file_size}"
+                    )
+
+                    self.end_headers()
+
+                    return True
+
+            else:
+
+                length = file_size
+
+                self.send_response(200)
+
+            self.send_header(
+                "Content-Type",
+                "video/mp4"
+            )
+
+            self.send_header(
+                "Content-Length",
+                str(length)
+            )
+
+            self.send_header(
+                "Accept-Ranges",
+                "bytes"
+            )
+
+            self.send_header(
+                "Cache-Control",
+                "public, max-age=3600"
+            )
+
+            self.end_headers()
+
+            with open(
+                file_path,
+                "rb"
+            ) as file:
+
+                file.seek(start)
+
+                remaining = length
+
+                while remaining > 0:
+
+                    chunk_size = min(
+                        1024 * 1024,
+                        remaining
+                    )
+
+                    chunk = file.read(
+                        chunk_size
+                    )
+
+                    if not chunk:
+                        break
+
+                    self.wfile.write(
+                        chunk
+                    )
+
+                    remaining -= len(
+                        chunk
+                    )
+
+            return True
+
+        except Exception as e:
+
+            print(
+                "Erreur lecture vidéo:",
+                repr(e)
+            )
+
+            return True
+
+    # ========================================================
     # GET
     # ========================================================
 
@@ -863,6 +1203,29 @@ class WebHandler(BaseHTTPRequestHandler):
             return
 
         # ----------------------------------------------------
+        # VIDEO MP4
+        # ----------------------------------------------------
+
+        requested_path = unquote(
+            parsed.path
+        ).lstrip("/")
+
+        if (
+            requested_path.startswith("video_")
+            and requested_path.endswith(".mp4")
+        ):
+
+            file_path = Path(
+                requested_path
+            )
+
+            if self.serve_video(
+                file_path
+            ):
+
+                return
+
+        # ----------------------------------------------------
         # OFFRES
         # ----------------------------------------------------
 
@@ -877,8 +1240,6 @@ class WebHandler(BaseHTTPRequestHandler):
                 [""]
             )[0]
 
-            # Si initData a été envoyé non encodé,
-            # on tente également de récupérer la valeur brute.
             if not init_data:
 
                 raw_query = parsed.query
@@ -934,6 +1295,9 @@ class WebHandler(BaseHTTPRequestHandler):
                     "username"
                 )
             )
+
+            # Vérification / création des vidéos
+            sync_local_videos()
 
             refresh_cycle_if_needed(
                 user_id
@@ -1056,6 +1420,10 @@ class WebHandler(BaseHTTPRequestHandler):
         # ====================================================
 
         if parsed.path == "/api/user":
+
+            refresh_cycle_if_needed(
+                user_id
+            )
 
             user = get_user(
                 user_id
@@ -1180,6 +1548,27 @@ class WebHandler(BaseHTTPRequestHandler):
                 )
 
                 return
+
+            # Vérifier que la vidéo existe encore
+            if offer["video_url"]:
+
+                video_path = Path(
+                    offer["video_url"].lstrip("/")
+                )
+
+                if not video_path.exists():
+
+                    connection.close()
+
+                    self.send_json(
+                        404,
+                        {
+                            "error":
+                            "La vidéo n'existe plus sur le serveur."
+                        }
+                    )
+
+                    return
 
             cursor.execute(
                 """
@@ -1487,7 +1876,7 @@ def run_server():
     )
 
     print(
-        f"Web server running on port {port}"
+        f"🌐 Web server running on port {port}"
     )
 
     server.serve_forever()
@@ -1505,7 +1894,14 @@ def main():
             "TELEGRAM_TOKEN manquant dans Railway."
         )
 
+    print(
+        "🚀 Démarrage de View Cash..."
+    )
+
     init_db()
+
+    # Détecte les vidéos dès le démarrage
+    sync_local_videos()
 
     threading.Thread(
         target=run_server,
@@ -1540,11 +1936,15 @@ def main():
     )
 
     print(
-        "ViewCash bot started."
+        "🤖 ViewCash bot started."
     )
 
     application.run_polling()
 
+
+# ============================================================
+# START
+# ============================================================
 
 if __name__ == "__main__":
     main()
