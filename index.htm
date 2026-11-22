@@ -1,13 +1,12 @@
 <!DOCTYPE html>
 <html lang="fr">
-
 <head>
 
 <meta charset="UTF-8">
 
 <meta
-name="viewport"
-content="width=device-width, initial-scale=1.0"
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
 >
 
 <title>ViewCash</title>
@@ -22,129 +21,155 @@ content="width=device-width, initial-scale=1.0"
 
 body {
     margin: 0;
-    background: #0b0b12;
-    color: white;
     font-family: Arial, sans-serif;
-    padding-bottom: 90px;
+    background:
+        radial-gradient(
+            circle at top,
+            #18243a,
+            #070b12 60%
+        );
+    color: white;
+    min-height: 100vh;
 }
 
-header {
-    padding: 25px 18px 10px;
+.container {
+    max-width: 600px;
+    margin: auto;
+    padding: 20px;
+    padding-bottom: 100px;
+}
+
+.header {
+    text-align: center;
+    padding: 20px 0;
 }
 
 .logo {
-    font-size: 30px;
+    font-size: 35px;
     font-weight: bold;
 }
 
 .subtitle {
-    color: #999;
-    margin-top: 5px;
+    color: #aeb8c8;
+    margin-top: 8px;
 }
 
 .card {
-    margin: 14px;
-    padding: 18px;
+    background: rgba(255,255,255,.08);
+    border: 1px solid rgba(255,255,255,.12);
+    backdrop-filter: blur(15px);
     border-radius: 20px;
-    background: #171722;
-    border: 1px solid #292936;
-}
-
-.balance-title {
-    color: #aaa;
+    padding: 20px;
+    margin-bottom: 15px;
 }
 
 .balance {
-    font-size: 34px;
+    text-align: center;
+}
+
+.balance-value {
+    font-size: 38px;
     font-weight: bold;
-    margin-top: 5px;
+    margin: 10px 0;
 }
 
-.tabs {
-    display: flex;
-    gap: 8px;
-    padding: 5px 14px;
-}
-
-.tab {
-    border: 0;
-    padding: 12px 17px;
-    border-radius: 14px;
-    background: #20202c;
+.button {
+    width: 100%;
+    border: none;
+    border-radius: 15px;
+    padding: 16px;
+    margin-top: 10px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    background: #2196f3;
     color: white;
-    font-size: 15px;
 }
 
-.tab.active {
-    background: #8c3cff;
+.button.secondary {
+    background: rgba(255,255,255,.1);
+}
+
+.button.green {
+    background: #16a34a;
+}
+
+.button.red {
+    background: #dc2626;
+}
+
+.offer {
+    padding: 16px;
+    background: rgba(255,255,255,.06);
+    border-radius: 15px;
+    margin-bottom: 12px;
 }
 
 .offer-title {
-    font-size: 19px;
+    font-size: 18px;
     font-weight: bold;
 }
 
 .reward {
-    color: #ffd34d;
+    color: #4ade80;
     font-weight: bold;
-    margin-top: 8px;
+    margin-top: 6px;
 }
 
-.btn {
+.offer a {
+    display: block;
+    text-decoration: none;
+    text-align: center;
+}
+
+input, select {
     width: 100%;
-    padding: 14px;
-    margin-top: 12px;
-    border: 0;
-    border-radius: 13px;
-    font-size: 16px;
-    font-weight: bold;
-}
-
-.open {
-    background: white;
-    color: black;
-}
-
-.complete {
-    background: #8c3cff;
+    padding: 15px;
+    margin-top: 10px;
+    border: none;
+    border-radius: 12px;
+    background: rgba(255,255,255,.1);
     color: white;
 }
 
-.complete:disabled {
-    opacity: .4;
-}
-
-.empty {
-    text-align: center;
-    color: #999;
-    padding: 40px 15px;
-}
-
-.bottom {
+.nav {
     position: fixed;
     bottom: 0;
     left: 0;
     right: 0;
-
+    background: rgba(5,8,15,.95);
+    border-top: 1px solid rgba(255,255,255,.1);
     display: flex;
     justify-content: space-around;
-
-    padding: 12px;
-
-    background: #15151f;
-    border-top: 1px solid #292936;
+    padding: 10px;
 }
 
-.bottom button {
-    background: none;
+.nav button {
     border: none;
-    color: #aaa;
+    background: transparent;
+    color: #aeb8c8;
     font-size: 12px;
 }
 
-.bottom b {
+.nav button.active {
+    color: #2196f3;
+}
+
+.page {
+    display: none;
+}
+
+.page.active {
     display: block;
-    font-size: 22px;
+}
+
+.small {
+    color: #aeb8c8;
+    font-size: 14px;
+}
+
+.success {
+    color: #4ade80;
 }
 
 </style>
@@ -153,73 +178,238 @@ header {
 
 <body>
 
-<header>
+<div class="container">
 
-<div class="logo">
-🎬 ViewCash
+    <div class="header">
+        <div class="logo">💰 ViewCash</div>
+        <div class="subtitle">
+            Gagne des récompenses avec les offres disponibles.
+        </div>
+    </div>
+
+
+    <!-- ACCUEIL -->
+
+    <div id="home" class="page active">
+
+        <div class="card balance">
+
+            <div class="small">
+                Mon solde
+            </div>
+
+            <div
+                class="balance-value"
+                id="balance"
+            >
+                0.00 €
+            </div>
+
+            <button
+                class="button green"
+                onclick="showPage('withdraw')"
+            >
+                💸 Retirer mon argent
+            </button>
+
+        </div>
+
+
+        <div class="card">
+
+            <h2>🎬 Gagner de l'argent</h2>
+
+            <p class="small">
+                Réalise les offres disponibles
+                pour recevoir tes récompenses.
+            </p>
+
+            <button
+                class="button"
+                onclick="showPage('offers')"
+            >
+                🎬 Voir les offres
+            </button>
+
+        </div>
+
+    </div>
+
+
+    <!-- OFFRES -->
+
+    <div id="offers" class="page">
+
+        <div class="card">
+
+            <h2>🎬 Vidéos / Offres</h2>
+
+            <div id="offersList">
+                Chargement...
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- PARRAINAGE -->
+
+    <div id="referral" class="page">
+
+        <div class="card">
+
+            <h2>👥 Parrainage</h2>
+
+            <p>
+                Invite tes amis et gagne des récompenses.
+            </p>
+
+            <input
+                id="referralLink"
+                readonly
+            >
+
+            <button
+                class="button"
+                onclick="copyReferral()"
+            >
+                📋 Copier mon lien
+            </button>
+
+        </div>
+
+    </div>
+
+
+    <!-- RETRAIT -->
+
+    <div id="withdraw" class="page">
+
+        <div class="card">
+
+            <h2>💸 Retrait</h2>
+
+            <p class="small">
+                Retrait minimum : 5 €
+            </p>
+
+            <input
+                id="withdrawAmount"
+                type="number"
+                placeholder="Montant"
+                min="5"
+                step="0.01"
+            >
+
+            <select id="withdrawMethod">
+
+                <option value="paypal">
+                    PayPal
+                </option>
+
+                <option value="bank">
+                    Virement bancaire
+                </option>
+
+            </select>
+
+            <input
+                id="withdrawDetails"
+                placeholder="Email ou informations de paiement"
+            >
+
+            <button
+                class="button green"
+                onclick="withdraw()"
+            >
+                💸 Demander le retrait
+            </button>
+
+            <div id="withdrawMessage"></div>
+
+        </div>
+
+    </div>
+
+
+    <!-- AIDE -->
+
+    <div id="help" class="page">
+
+        <div class="card">
+
+            <h2>❓ Aide</h2>
+
+            <p>
+                🎬 Consulte les offres disponibles.
+            </p>
+
+            <p>
+                💰 Réalise une offre pour recevoir
+                la récompense prévue.
+            </p>
+
+            <p>
+                👥 Invite tes amis avec ton lien
+                de parrainage.
+            </p>
+
+            <p>
+                💸 Le retrait minimum est de 5 €.
+            </p>
+
+        </div>
+
+    </div>
+
 </div>
 
-<div class="subtitle">
-Regarde des vidéos et gagne des récompenses
-</div>
 
-</header>
+<!-- NAVIGATION -->
 
+<div class="nav">
 
-<div class="card">
+    <button
+        id="nav-home"
+        class="active"
+        onclick="showPage('home')"
+    >
+        🏠<br>
+        Accueil
+    </button>
 
-<div class="balance-title">
-💰 Mon solde
-</div>
+    <button
+        id="nav-offers"
+        onclick="showPage('offers')"
+    >
+        🎬<br>
+        Offres
+    </button>
 
-<div
-id="balance"
-class="balance"
->
-0,00 €
-</div>
+    <button
+        id="nav-referral"
+        onclick="showPage('referral')"
+    >
+        👥<br>
+        Parrainage
+    </button>
 
-</div>
+    <button
+        id="nav-withdraw"
+        onclick="showPage('withdraw')"
+    >
+        💸<br>
+        Retrait
+    </button>
 
-
-<div class="tabs">
-
-<button
-class="tab active"
-onclick="showOffers()"
->
-🎬 Vidéos
-</button>
-
-<button
-class="tab"
-onclick="showReferral()"
->
-👥 Inviter
-</button>
-
-</div>
-
-
-<main id="content"></main>
-
-
-<div class="bottom">
-
-<button onclick="showOffers()">
-<b>⌂</b>
-Accueil
-</button>
-
-<button onclick="showOffers()">
-<b>☷</b>
-Tâches
-</button>
-
-<button onclick="showReferral()">
-<b>♙</b>
-Parrainage
-</button>
+    <button
+        id="nav-help"
+        onclick="showPage('help')"
+    >
+        ❓<br>
+        Aide
+    </button>
 
 </div>
 
@@ -231,274 +421,381 @@ const tg = window.Telegram.WebApp;
 tg.ready();
 tg.expand();
 
+const initData = tg.initData;
 
-function headers() {
+let currentBalance = 0;
 
-    return {
-        "X-Telegram-Init-Data": tg.initData
-    };
 
+// =========================
+// NAVIGATION
+// =========================
+
+function showPage(page) {
+
+    document
+        .querySelectorAll(".page")
+        .forEach(p => {
+            p.classList.remove("active");
+        });
+
+    document
+        .getElementById(page)
+        .classList.add("active");
+
+
+    document
+        .querySelectorAll(".nav button")
+        .forEach(b => {
+            b.classList.remove("active");
+        });
+
+    const nav = document.getElementById(
+        "nav-" + page
+    );
+
+    if (nav) {
+        nav.classList.add("active");
+    }
+
+    if (page === "offers") {
+        loadOffers();
+    }
 }
 
 
+// =========================
+// API
+// =========================
+
+async function api(url, data = {}) {
+
+    const response = await fetch(
+        url,
+        {
+            method: "POST",
+
+            headers: {
+                "Content-Type": "application/json"
+            },
+
+            body: JSON.stringify({
+                ...data,
+                initData: initData
+            })
+        }
+    );
+
+    return await response.json();
+}
+
+
+// =========================
+// USER
+// =========================
+
 async function loadUser() {
 
-    const response =
-        await fetch(
-            "/api/me",
-            {
-                headers: headers()
+    try {
+
+        const data = await api(
+            "/api/user"
+        );
+
+        if (data.error) {
+            console.log(data.error);
+            return;
+        }
+
+        currentBalance = data.balance || 0;
+
+        document.getElementById(
+            "balance"
+        ).textContent =
+            Number(currentBalance).toFixed(2)
+            + " €";
+
+
+        const userId = data.user_id;
+
+        document.getElementById(
+            "referralLink"
+        ).value =
+            "https://t.me/ViewCashMoneyBot?start="
+            + userId;
+
+    } catch (error) {
+
+        console.log(error);
+
+    }
+}
+
+
+// =========================
+// OFFRES
+// =========================
+
+async function loadOffers() {
+
+    const box =
+        document.getElementById(
+            "offersList"
+        );
+
+    box.innerHTML = "Chargement...";
+
+    try {
+
+        const response = await fetch(
+            "/api/offers"
+        );
+
+        const data =
+            await response.json();
+
+        if (!data.offers.length) {
+
+            box.innerHTML =
+                "<p class='small'>"
+                + "Aucune offre disponible pour le moment."
+                + "</p>";
+
+            return;
+        }
+
+        box.innerHTML = "";
+
+        data.offers.forEach(
+            offer => {
+
+                const div =
+                    document.createElement(
+                        "div"
+                    );
+
+                div.className =
+                    "offer";
+
+                div.innerHTML = `
+
+                    <div class="offer-title">
+                        ${escapeHtml(offer.title)}
+                    </div>
+
+                    <div class="reward">
+                        +${Number(offer.reward).toFixed(2)} €
+                    </div>
+
+                    <a
+                        href="${escapeAttr(offer.url)}"
+                        target="_blank"
+                        class="button"
+                    >
+                        🚀 Ouvrir l'offre
+                    </a>
+
+                    <button
+                        class="button green"
+                        onclick="completeOffer(${offer.id})"
+                    >
+                        ✅ J'ai terminé
+                    </button>
+
+                `;
+
+                box.appendChild(div);
+
             }
         );
 
-    if (!response.ok)
-        return;
+    } catch (error) {
+
+        box.innerHTML =
+            "<p>❌ Impossible de charger les offres.</p>";
+
+    }
+}
+
+
+// =========================
+// TERMINER OFFRE
+// =========================
+
+async function completeOffer(id) {
 
     const data =
-        await response.json();
+        await api(
+            "/api/complete",
+            {
+                offer_id: id
+            }
+        );
+
+    if (data.error) {
+
+        alert(data.error);
+
+        return;
+    }
+
+    currentBalance =
+        data.balance;
 
     document.getElementById(
         "balance"
     ).textContent =
-        Number(data.balance)
-        .toFixed(2)
-        .replace(".", ",")
+        Number(currentBalance).toFixed(2)
         + " €";
-}
 
-
-async function showOffers() {
-
-    const content =
-        document.getElementById(
-            "content"
-        );
-
-    const response =
-        await fetch(
-            "/api/offers",
-            {
-                headers: headers()
-            }
-        );
-
-    const data =
-        await response.json();
-
-    if (!data.offers ||
-        data.offers.length === 0) {
-
-        content.innerHTML =
-            `
-            <div class="empty">
-
-                🎬<br><br>
-
-                Aucune offre disponible
-                pour le moment.
-
-            </div>
-            `;
-
-        return;
-    }
-
-
-    content.innerHTML =
-        data.offers.map(
-            offer => {
-
-                return `
-                <div class="card">
-
-                    <div class="offer-title">
-
-                        🎬
-                        ${escapeHtml(
-                            offer.title
-                        )}
-
-                    </div>
-
-                    <div class="reward">
-
-                        💰
-                        +${Number(
-                            offer.reward
-                        ).toFixed(2)} €
-
-                    </div>
-
-
-                    <button
-                        class="btn open"
-                        onclick="openOffer(
-                            '${escapeAttr(
-                                offer.url
-                            )}'
-                        )"
-                    >
-
-                        ▶️ Ouvrir
-
-                    </button>
-
-
-                    <button
-                        class="btn complete"
-                        ${offer.completed
-                            ? "disabled"
-                            : ""}
-                        onclick="completeOffer(
-                            ${offer.id}
-                        )"
-                    >
-
-                        ${
-                            offer.completed
-                            ? "✅ Déjà validée"
-                            : "✅ J'ai terminé"
-                        }
-
-                    </button>
-
-                </div>
-                `;
-
-            }
-        ).join("");
-
-}
-
-
-function openOffer(url) {
-
-    window.open(
-        url,
-        "_blank"
+    alert(
+        "🎉 +" +
+        Number(data.reward).toFixed(2) +
+        " € ajoutés à ton solde !"
     );
 
+    loadOffers();
 }
 
 
-async function completeOffer(id) {
+// =========================
+// RETRAIT
+// =========================
 
-    const response =
-        await fetch(
-            "/api/complete/" + id,
-            {
-                method: "POST",
-                headers: headers()
-            }
+async function withdraw() {
+
+    const amount =
+        Number(
+            document.getElementById(
+                "withdrawAmount"
+            ).value
         );
 
-    const data =
-        await response.json();
+    const method =
+        document.getElementById(
+            "withdrawMethod"
+        ).value;
 
+    const details =
+        document.getElementById(
+            "withdrawDetails"
+        ).value.trim();
 
-    if (!response.ok) {
-
-        alert(
-            data.error ||
-            "Erreur"
+    const message =
+        document.getElementById(
+            "withdrawMessage"
         );
+
+    if (amount < 5) {
+
+        message.innerHTML =
+            "<p style='color:#f87171'>"
+            + "❌ Minimum 5 €."
+            + "</p>";
 
         return;
     }
 
+    if (!details) {
 
-    await loadUser();
+        message.innerHTML =
+            "<p style='color:#f87171'>"
+            + "❌ Remplis les informations de paiement."
+            + "</p>";
 
-    await showOffers();
+        return;
+    }
 
-}
-
-
-async function showReferral() {
-
-    const response =
-        await fetch(
-            "/api/me",
+    const data =
+        await api(
+            "/api/withdraw",
             {
-                headers: headers()
+                amount,
+                method,
+                details
             }
         );
 
-    const data =
-        await response.json();
+    if (data.error) {
 
+        message.innerHTML =
+            "<p style='color:#f87171'>"
+            + data.error
+            + "</p>";
+
+        return;
+    }
+
+    message.innerHTML =
+        "<p class='success'>"
+        + "✅ Demande envoyée !"
+        + "</p>";
 
     document.getElementById(
-        "content"
-    ).innerHTML = `
+        "withdrawAmount"
+    ).value = "";
 
-        <div class="card">
+    document.getElementById(
+        "withdrawDetails"
+    ).value = "";
 
-            <h2>
-                👥 Parrainage
-            </h2>
-
-            <p>
-                Invite tes amis
-                avec ton lien.
-            </p>
-
-            <p
-                style="
-                word-break:break-all;
-                color:#aaa;
-                "
-            >
-
-                ${data.referral_link}
-
-            </p>
-
-        </div>
-
-    `;
-
+    loadUser();
 }
 
+
+// =========================
+// PARRAINAGE
+// =========================
+
+function copyReferral() {
+
+    const input =
+        document.getElementById(
+            "referralLink"
+        );
+
+    navigator.clipboard.writeText(
+        input.value
+    );
+
+    alert(
+        "✅ Lien copié !"
+    );
+}
+
+
+// =========================
+// SECURITE HTML
+// =========================
 
 function escapeHtml(text) {
 
-    return String(text)
-        .replace(
-            /[&<>"']/g,
-            function(char) {
-
-                return {
-                    "&": "&amp;",
-                    "<": "&lt;",
-                    ">": "&gt;",
-                    '"': "&quot;",
-                    "'": "&#039;"
-                }[char];
-
-            }
+    const div =
+        document.createElement(
+            "div"
         );
 
+    div.textContent = text;
+
+    return div.innerHTML;
 }
 
 
 function escapeAttr(text) {
 
     return String(text)
-        .replace(
-            /'/g,
-            "\\'"
-        );
-
+        .replace(/"/g, "&quot;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
 }
 
 
-loadUser();
+// =========================
+// DEMARRAGE
+// =========================
 
-showOffers();
+loadUser();
 
 </script>
 
 </body>
-
 </html>
