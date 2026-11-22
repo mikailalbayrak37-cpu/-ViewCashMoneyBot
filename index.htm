@@ -56,11 +56,7 @@ p {
 }
 
 .balance {
-    background: linear-gradient(
-        135deg,
-        #7137df,
-        #255bd3
-    );
+    background: linear-gradient(135deg, #7137df, #255bd3);
     border-radius: 30px;
     padding: 30px;
     margin: 25px 0;
@@ -81,16 +77,11 @@ p {
     bottom: 0;
     left: 0;
     right: 0;
-
     background: #11101a;
-
     border-top: 1px solid #302e3b;
-
     display: flex;
     justify-content: space-around;
-
     padding: 12px 5px 18px;
-
     z-index: 9999;
 }
 
@@ -175,20 +166,11 @@ video {
 .reward-button {
     width: 100%;
     margin-top: 15px;
-
-    background: linear-gradient(
-        135deg,
-        #7c3aed,
-        #2563eb
-    );
-
+    background: linear-gradient(135deg, #7c3aed, #2563eb);
     color: white;
-
     border: none;
     border-radius: 18px;
-
     padding: 17px;
-
     font-size: 19px;
     font-weight: bold;
 }
@@ -263,6 +245,16 @@ select {
     padding: 20px;
 }
 
+.telegram-error {
+    background: #3a1820;
+    border: 1px solid #7b3040;
+    color: #ff9eaa;
+    border-radius: 18px;
+    padding: 20px;
+    text-align: center;
+    margin-bottom: 20px;
+}
+
 </style>
 </head>
 
@@ -270,11 +262,16 @@ select {
 
 <div class="app">
 
+    <section id="telegramError" style="display:none;">
+        <div class="telegram-error">
+            ❌ Cette application doit être ouverte depuis Telegram.
+        </div>
+    </section>
+
+
     <!-- ACCUEIL -->
-    <section
-        id="home"
-        class="page active"
-    >
+
+    <section id="home" class="page active">
 
         <h1>💰 View Cash</h1>
 
@@ -288,10 +285,7 @@ select {
                 💰 Ton solde
             </div>
 
-            <div
-                id="balanceHome"
-                class="balance-value"
-            >
+            <div id="balanceHome" class="balance-value">
                 0.00 €
             </div>
 
@@ -313,25 +307,11 @@ select {
 
             <h2>🎬 Comment ça marche ?</h2>
 
-            <p>
-                1. Choisis une vidéo.
-            </p>
-
-            <p>
-                2. Regarde-la jusqu'à la fin.
-            </p>
-
-            <p>
-                3. Le bouton de récompense apparaît.
-            </p>
-
-            <p>
-                4. Clique sur récupérer la récompense.
-            </p>
-
-            <p>
-                5. Après 20 vidéos, attends 10 heures.
-            </p>
+            <p>1. Choisis une vidéo.</p>
+            <p>2. Regarde-la jusqu'à la fin.</p>
+            <p>3. Le bouton de récompense apparaît.</p>
+            <p>4. Clique sur récupérer la récompense.</p>
+            <p>5. Après 20 vidéos, attends 10 heures.</p>
 
         </div>
 
@@ -339,10 +319,8 @@ select {
 
 
     <!-- VIDEOS -->
-    <section
-        id="videos"
-        class="page"
-    >
+
+    <section id="videos" class="page">
 
         <h1>🎬 Vidéos</h1>
 
@@ -352,10 +330,7 @@ select {
                 💰 Ton solde
             </div>
 
-            <div
-                id="balanceVideos"
-                class="balance-value"
-            >
+            <div id="balanceVideos" class="balance-value">
                 0.00 €
             </div>
 
@@ -366,22 +341,17 @@ select {
             <h2>🎬 Offres disponibles</h2>
 
             <p>
-                Termine chaque vidéo pour débloquer
-                ta récompense.
+                Termine chaque vidéo pour débloquer ta récompense.
             </p>
 
             <p>
                 📊 Progression :
-                <strong id="progress">
-                    0 / 20
-                </strong>
+                <strong id="progress">0 / 20</strong>
             </p>
 
         </div>
 
-        <div
-            id="offersContainer"
-        >
+        <div id="offersContainer">
             <div class="loading">
                 Chargement des vidéos...
             </div>
@@ -391,10 +361,8 @@ select {
 
 
     <!-- PARRAINAGE -->
-    <section
-        id="referral"
-        class="page"
-    >
+
+    <section id="referral" class="page">
 
         <h1>👥 Parrainage</h1>
 
@@ -408,15 +376,9 @@ select {
                 lorsqu'il rejoint View Cash.
             </p>
 
-            <input
-                id="referralLink"
-                readonly
-            >
+            <input id="referralLink" readonly>
 
-            <button
-                class="primary"
-                onclick="copyReferral()"
-            >
+            <button class="primary" onclick="copyReferral()">
                 📋 Copier mon lien
             </button>
 
@@ -426,10 +388,8 @@ select {
 
 
     <!-- RETRAIT -->
-    <section
-        id="withdraw"
-        class="page"
-    >
+
+    <section id="withdraw" class="page">
 
         <h1>💸 Retrait</h1>
 
@@ -437,10 +397,7 @@ select {
 
             <h2>Ton solde</h2>
 
-            <div
-                id="balanceWithdraw"
-                class="big-number"
-            >
+            <div id="balanceWithdraw" class="big-number">
                 0.00 €
             </div>
 
@@ -459,9 +416,7 @@ select {
 
             <select id="withdrawMethod">
 
-                <option value="">
-                    Choisir
-                </option>
+                <option value="">Choisir</option>
 
                 <option value="paypal">
                     PayPal
@@ -498,10 +453,7 @@ select {
                 placeholder="Email PayPal, IBAN, adresse crypto..."
             >
 
-            <button
-                class="primary"
-                onclick="requestWithdraw()"
-            >
+            <button class="primary" onclick="requestWithdraw()">
                 💸 Demander le retrait
             </button>
 
@@ -517,10 +469,8 @@ select {
 
 
     <!-- AIDE -->
-    <section
-        id="help"
-        class="page"
-    >
+
+    <section id="help" class="page">
 
         <h1>❓ Aide</h1>
 
@@ -571,38 +521,27 @@ select {
 
 <nav class="nav">
 
-    <button
-        onclick="showPage('home', this)"
-        class="active"
-    >
+    <button onclick="showPage('home', this)" class="active">
         <span class="nav-icon">🏠</span>
         Accueil
     </button>
 
-    <button
-        onclick="showPage('videos', this)"
-    >
+    <button onclick="showPage('videos', this)">
         <span class="nav-icon">🎬</span>
         Vidéos
     </button>
 
-    <button
-        onclick="showPage('referral', this)"
-    >
+    <button onclick="showPage('referral', this)">
         <span class="nav-icon">👥</span>
         Parrainage
     </button>
 
-    <button
-        onclick="showPage('withdraw', this)"
-    >
+    <button onclick="showPage('withdraw', this)">
         <span class="nav-icon">💸</span>
         Retrait
     </button>
 
-    <button
-        onclick="showPage('help', this)"
-    >
+    <button onclick="showPage('help', this)">
         <span class="nav-icon">❓</span>
         Aide
     </button>
@@ -612,14 +551,37 @@ select {
 
 <script>
 
+/* ==========================================================
+   TELEGRAM
+========================================================== */
+
 const tg = window.Telegram.WebApp;
 
 tg.ready();
 tg.expand();
 
-const initData = tg.initData;
+const initData = tg.initData || "";
 
 let currentUser = null;
+
+
+/* ==========================================================
+   VERIFICATION TELEGRAM
+========================================================== */
+
+function telegramReady() {
+
+    if (!initData) {
+
+        document.getElementById(
+            "telegramError"
+        ).style.display = "block";
+
+        return false;
+    }
+
+    return true;
+}
 
 
 /* ==========================================================
@@ -658,34 +620,56 @@ function showPage(pageId, button) {
    API
 ========================================================== */
 
-async function api(
-    url,
-    options = {}
-) {
+async function api(url, options = {}) {
 
-    options.headers = {
-        "Content-Type": "application/json",
-        ...(options.headers || {})
+    if (!telegramReady()) {
+        throw new Error(
+            "Application ouverte en dehors de Telegram."
+        );
+    }
+
+    const requestOptions = {
+        ...options,
+        headers: {
+            "Content-Type": "application/json",
+            ...(options.headers || {})
+        }
     };
 
-    if (options.method === "POST") {
+
+    if (
+        requestOptions.method &&
+        requestOptions.method.toUpperCase() === "POST"
+    ) {
 
         let body = {};
 
         try {
-            body = JSON.parse(
-                options.body || "{}"
-            );
-        } catch {}
+
+            if (requestOptions.body) {
+
+                body = JSON.parse(
+                    requestOptions.body
+                );
+
+            }
+
+        } catch (error) {
+
+            body = {};
+
+        }
 
         body.initData = initData;
 
-        options.body = JSON.stringify(body);
+        requestOptions.body =
+            JSON.stringify(body);
     }
+
 
     return fetch(
         url,
-        options
+        requestOptions
     );
 }
 
@@ -695,6 +679,10 @@ async function api(
 ========================================================== */
 
 async function loadUser() {
+
+    if (!telegramReady()) {
+        return;
+    }
 
     try {
 
@@ -710,8 +698,10 @@ async function loadUser() {
             await response.json();
 
         if (!response.ok) {
+
             throw new Error(
-                data.error || "Erreur"
+                data.error ||
+                "Impossible de récupérer l'utilisateur."
             );
         }
 
@@ -728,7 +718,10 @@ async function loadUser() {
 
     } catch (error) {
 
-        console.error(error);
+        console.error(
+            "Erreur utilisateur:",
+            error
+        );
 
     }
 }
@@ -746,7 +739,7 @@ function updateBalances() {
 
     const value =
         Number(
-            currentUser.balance
+            currentUser.balance || 0
         ).toFixed(2) + " €";
 
     document.getElementById(
@@ -760,7 +753,6 @@ function updateBalances() {
     document.getElementById(
         "balanceWithdraw"
     ).textContent = value;
-
 }
 
 
@@ -783,7 +775,6 @@ function createReferralLink() {
     document.getElementById(
         "referralLink"
     ).value = link;
-
 }
 
 
@@ -800,9 +791,7 @@ async function copyReferral() {
             input.value
         );
 
-        alert(
-            "✅ Lien copié !"
-        );
+        alert("✅ Lien copié !");
 
     } catch {
 
@@ -812,9 +801,7 @@ async function copyReferral() {
             "copy"
         );
 
-        alert(
-            "✅ Lien copié !"
-        );
+        alert("✅ Lien copié !");
     }
 }
 
@@ -824,6 +811,10 @@ async function copyReferral() {
 ========================================================== */
 
 async function loadOffers() {
+
+    if (!telegramReady()) {
+        return;
+    }
 
     const container =
         document.getElementById(
@@ -837,10 +828,14 @@ async function loadOffers() {
 
     try {
 
-        const response =
-            await fetch(
-                `/api/offers?initData=${encodeURIComponent(initData)}`
+        const url =
+            "/api/offers?initData=" +
+            encodeURIComponent(
+                initData
             );
+
+        const response =
+            await fetch(url);
 
         const data =
             await response.json();
@@ -851,13 +846,17 @@ async function loadOffers() {
                 data.error ||
                 "Impossible de charger les vidéos."
             );
-
         }
 
         document.getElementById(
             "progress"
         ).textContent =
             `${data.completed} / ${data.total}`;
+
+
+        /* --------------------------------------------------
+           COOLDOWN
+        -------------------------------------------------- */
 
         if (data.cooldown > 0) {
 
@@ -869,15 +868,23 @@ async function loadOffers() {
             return;
         }
 
-        if (!data.offers ||
-            data.offers.length === 0) {
+
+        /* --------------------------------------------------
+           AUCUNE OFFRE
+        -------------------------------------------------- */
+
+        if (
+            !data.offers ||
+            data.offers.length === 0
+        ) {
 
             container.innerHTML = `
                 <div class="card">
                     <h2>🎬 Aucune vidéo disponible</h2>
+
                     <p>
-                        Il n'y a actuellement aucune
-                        vidéo disponible.
+                        Il n'y a actuellement
+                        aucune vidéo disponible.
                     </p>
                 </div>
             `;
@@ -885,24 +892,33 @@ async function loadOffers() {
             return;
         }
 
+
         container.innerHTML = "";
+
 
         data.offers.forEach(
             offer => {
+
                 createOfferCard(
                     offer,
                     container
                 );
+
             }
         );
 
     } catch (error) {
 
-        console.error(error);
+        console.error(
+            "Erreur offres:",
+            error
+        );
 
         container.innerHTML = `
             <div class="card error">
-                ❌ ${escapeHtml(error.message)}
+                ❌ ${escapeHtml(
+                    error.message
+                )}
             </div>
         `;
     }
@@ -923,7 +939,11 @@ function createOfferCard(
             "div"
         );
 
-    card.className = "offer";
+    card.className =
+        "offer";
+
+
+    /* TITRE */
 
     const title =
         document.createElement(
@@ -936,8 +956,12 @@ function createOfferCard(
     title.textContent =
         "🎬 " + offer.title;
 
-    card.appendChild(title);
+    card.appendChild(
+        title
+    );
 
+
+    /* RECOMPENSE */
 
     const reward =
         document.createElement(
@@ -948,21 +972,20 @@ function createOfferCard(
         "reward";
 
     reward.textContent =
-        `🎁 Récompense : ${Number(
-            offer.reward
-        ).toFixed(2)} €`;
+        `🎁 Récompense : ${
+            Number(
+                offer.reward
+            ).toFixed(2)
+        } €`;
 
-    card.appendChild(reward);
+    card.appendChild(
+        reward
+    );
 
 
-    /*
-     * VIDEO
-     */
+    /* VIDEO */
 
     let videoElement = null;
-
-    let tiktokFrame = null;
-
 
     if (offer.video_url) {
 
@@ -972,13 +995,14 @@ function createOfferCard(
             )
         ) {
 
-            tiktokFrame =
+            const tiktokBox =
                 createTikTokPlayer(
-                    offer.video_url
+                    offer.video_url,
+                    card
                 );
 
             card.appendChild(
-                tiktokFrame
+                tiktokBox
             );
 
         } else {
@@ -989,7 +1013,9 @@ function createOfferCard(
                 );
 
             videoElement.controls = true;
+
             videoElement.playsInline = true;
+
             videoElement.preload =
                 "metadata";
 
@@ -1017,13 +1043,10 @@ function createOfferCard(
         card.appendChild(
             noVideo
         );
-
     }
 
 
-    /*
-     * MESSAGE
-     */
+    /* MESSAGE */
 
     const message =
         document.createElement(
@@ -1041,9 +1064,7 @@ function createOfferCard(
     );
 
 
-    /*
-     * REWARD BUTTON
-     */
+    /* BOUTON */
 
     const button =
         document.createElement(
@@ -1064,9 +1085,7 @@ function createOfferCard(
     );
 
 
-    /*
-     * SUCCESS
-     */
+    /* SUCCESS */
 
     const success =
         document.createElement(
@@ -1084,9 +1103,7 @@ function createOfferCard(
     );
 
 
-    /*
-     * MP4 ENDED
-     */
+    /* MP4 */
 
     if (videoElement) {
 
@@ -1104,13 +1121,10 @@ function createOfferCard(
                     "block";
             }
         );
-
     }
 
 
-    /*
-     * REWARD
-     */
+    /* RECOMPENSE */
 
     button.addEventListener(
         "click",
@@ -1144,39 +1158,47 @@ function createOfferCard(
                         data.error ||
                         "Erreur"
                     );
-
                 }
 
-                currentUser.balance =
-                    data.balance;
 
-                currentUser.completed =
-                    data.completed;
+                if (currentUser) {
+
+                    currentUser.balance =
+                        data.balance;
+
+                    currentUser.completed =
+                        data.completed;
+                }
+
 
                 updateBalances();
+
 
                 document.getElementById(
                     "progress"
                 ).textContent =
                     `${data.completed} / ${data.total}`;
 
+
                 button.style.display =
                     "none";
+
 
                 success.style.display =
                     "block";
 
+
                 success.textContent =
-                    `✅ +${Number(
-                        data.reward
-                    ).toFixed(2)} € ajoutés à ton solde !`;
+                    `✅ +${
+                        Number(
+                            data.reward
+                        ).toFixed(2)
+                    } € ajoutés à ton solde !`;
+
 
                 message.textContent =
                     "🎉 Récompense récupérée !";
 
-                /*
-                 * Si les 20 sont terminées
-                 */
 
                 if (
                     data.completed >=
@@ -1191,6 +1213,11 @@ function createOfferCard(
 
             } catch (error) {
 
+                console.error(
+                    "Erreur récompense:",
+                    error
+                );
+
                 button.disabled = false;
 
                 button.textContent =
@@ -1200,7 +1227,6 @@ function createOfferCard(
                     error.message
                 );
             }
-
         }
     );
 
@@ -1212,11 +1238,12 @@ function createOfferCard(
 
 
 /* ==========================================================
-   TIKTOK PLAYER
+   TIKTOK
 ========================================================== */
 
 function createTikTokPlayer(
-    url
+    url,
+    card
 ) {
 
     const box =
@@ -1226,6 +1253,7 @@ function createTikTokPlayer(
 
     box.className =
         "tiktok-box";
+
 
     const iframe =
         document.createElement(
@@ -1240,10 +1268,12 @@ function createTikTokPlayer(
         ""
     );
 
+
     iframe.src =
         buildTikTokPlayerUrl(
             url
         );
+
 
     box.appendChild(
         iframe
@@ -1251,8 +1281,11 @@ function createTikTokPlayer(
 
 
     /*
-     * TikTok envoie les événements
-     * au parent avec postMessage.
+     * IMPORTANT :
+     * Le lecteur TikTok ne garantit pas toujours
+     * l'événement "vidéo terminée".
+     *
+     * On écoute les messages du lecteur.
      */
 
     window.addEventListener(
@@ -1261,25 +1294,21 @@ function createTikTokPlayer(
 
             if (
                 !event.data ||
-                event.data["x-tiktok-player"] !== true
+                event.data[
+                    "x-tiktok-player"
+                ] !== true
             ) {
                 return;
             }
 
+
             if (
                 event.data.type ===
                 "onStateChange" &&
-                Number(event.data.value) === 0
+                Number(
+                    event.data.value
+                ) === 0
             ) {
-
-                const card =
-                    box.closest(
-                        ".offer"
-                    );
-
-                if (!card) {
-                    return;
-                }
 
                 const button =
                     card.querySelector(
@@ -1291,11 +1320,13 @@ function createTikTokPlayer(
                         ".watch-message"
                     );
 
+
                 if (button) {
 
                     button.style.display =
                         "block";
                 }
+
 
                 if (message) {
 
@@ -1310,6 +1341,7 @@ function createTikTokPlayer(
         }
     );
 
+
     return box;
 }
 
@@ -1322,28 +1354,32 @@ function buildTikTokPlayerUrl(
     url
 ) {
 
-    /*
-     * URL classique :
-     * https://www.tiktok.com/@user/video/123456
-     */
-
     const match =
         url.match(
             /\/video\/(\d+)/
         );
+
 
     if (!match) {
 
         return url;
     }
 
+
     const videoId =
         match[1];
+
 
     return (
         "https://www.tiktok.com/player/v1/" +
         videoId +
-        "?controls=1&progress_bar=1&play_button=1&volume_control=1&fullscreen_button=1&timestamp=1&loop=0"
+        "?controls=1" +
+        "&progress_bar=1" +
+        "&play_button=1" +
+        "&volume_control=1" +
+        "&fullscreen_button=1" +
+        "&timestamp=1" +
+        "&loop=0"
     );
 }
 
@@ -1384,8 +1420,10 @@ function showCooldown(
         </div>
     `;
 
+
     let remaining =
         Number(seconds);
+
 
     function update() {
 
@@ -1398,23 +1436,28 @@ function showCooldown(
             return;
         }
 
+
         const hours =
             Math.floor(
                 remaining / 3600
             );
+
 
         const minutes =
             Math.floor(
                 (remaining % 3600) / 60
             );
 
+
         const secs =
             remaining % 60;
+
 
         const element =
             document.getElementById(
                 "countdown"
             );
+
 
         if (element) {
 
@@ -1424,13 +1467,16 @@ function showCooldown(
                 `${String(secs).padStart(2, "0")}`;
         }
 
+
         remaining--;
+
 
         setTimeout(
             update,
             1000
         );
     }
+
 
     update();
 }
@@ -1449,15 +1495,18 @@ async function requestWithdraw() {
             ).value
         );
 
+
     const method =
         document.getElementById(
             "withdrawMethod"
         ).value;
 
+
     const details =
         document.getElementById(
             "withdrawDetails"
         ).value.trim();
+
 
     const message =
         document.getElementById(
@@ -1475,6 +1524,7 @@ async function requestWithdraw() {
 
         return;
     }
+
 
     if (!method || !details) {
 
@@ -1503,8 +1553,10 @@ async function requestWithdraw() {
                 }
             );
 
+
         const data =
             await response.json();
+
 
         if (!response.ok) {
 
@@ -1514,13 +1566,16 @@ async function requestWithdraw() {
             );
         }
 
+
         message.style.display =
             "block";
 
         message.textContent =
             "✅ Demande de retrait envoyée.";
 
+
         await loadUser();
+
 
     } catch (error) {
 
@@ -1534,7 +1589,7 @@ async function requestWithdraw() {
 
 
 /* ==========================================================
-   SECURITY DISPLAY
+   ESCAPE HTML
 ========================================================== */
 
 function escapeHtml(
@@ -1542,26 +1597,11 @@ function escapeHtml(
 ) {
 
     return String(value)
-        .replaceAll(
-            "&",
-            "&amp;"
-        )
-        .replaceAll(
-            "<",
-            "&lt;"
-        )
-        .replaceAll(
-            ">",
-            "&gt;"
-        )
-        .replaceAll(
-            '"',
-            "&quot;"
-        )
-        .replaceAll(
-            "'",
-            "&#039;"
-        );
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
 }
 
 
@@ -1569,7 +1609,11 @@ function escapeHtml(
    START
 ========================================================== */
 
-loadUser();
+if (telegramReady()) {
+
+    loadUser();
+
+}
 
 </script>
 
