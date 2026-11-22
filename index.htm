@@ -1,202 +1,1399 @@
-<script>
-async function loadOffers() {
-    const container = document.getElementById("offersList");
+<!DOCTYPE html>
+<html lang="fr">
 
-    if (!container) return;
+<head>
 
-    container.innerHTML = `
-        <div class="loading">
-            Chargement des vidéos...
-        </div>
-    `;
+    <meta charset="UTF-8">
 
-    try {
-        const data = await api("/api/offers");
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
 
-        if (!data.offers || data.offers.length === 0) {
-            container.innerHTML = `
-                <div class="card">
-                    <div class="empty">
-                        🎬 Aucune vidéo disponible pour le moment.
-                    </div>
-                </div>
-            `;
-            return;
+    <title>View Cash</title>
+
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+    <style>
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
         }
 
-        container.innerHTML = "";
+        body {
+            font-family: Arial, sans-serif;
+            background:
+                radial-gradient(
+                    circle at top,
+                    #24203a,
+                    #0d0c14 55%
+                );
 
-        data.offers.forEach(offer => {
+            color: white;
+            min-height: 100vh;
+            padding-bottom: 90px;
+        }
 
-            const card = document.createElement("div");
-            card.className = "offer";
+        button,
+        input,
+        select {
+            font-family: inherit;
+        }
 
-            const title = document.createElement("div");
-            title.className = "offer-title";
-            title.textContent = "🎬 " + offer.title;
+        .app {
+            width: 100%;
+            max-width: 600px;
+            margin: auto;
+            padding: 18px;
+        }
 
-            const reward = document.createElement("div");
-            reward.className = "offer-reward";
-            reward.textContent =
-                "💰 +" + Number(offer.reward).toFixed(2) + " €";
+        .header {
+            padding: 12px 0 20px;
+        }
 
-            card.appendChild(title);
-            card.appendChild(reward);
+        .logo {
+            font-size: 28px;
+            font-weight: 800;
+        }
 
-            /* =========================
-               VIDEO
-            ========================= */
+        .subtitle {
+            color: #a9a6b8;
+            margin-top: 5px;
+        }
 
-            if (offer.video_url && offer.video_url.trim() !== "") {
+        .balance-card {
+            background:
+                linear-gradient(
+                    135deg,
+                    rgba(124, 58, 237, 0.9),
+                    rgba(37, 99, 235, 0.85)
+                );
 
-                const wrapper = document.createElement("div");
-                wrapper.className = "video-wrapper";
+            border-radius: 24px;
+            padding: 24px;
+            margin-bottom: 20px;
 
-                const video = document.createElement("video");
+            box-shadow:
+                0 15px 40px rgba(0, 0, 0, 0.35);
+        }
 
-                video.controls = true;
-                video.playsInline = true;
-                video.preload = "metadata";
-                video.src = offer.video_url;
+        .balance-title {
+            color: #ddd9ef;
+            font-size: 14px;
+        }
 
-                wrapper.appendChild(video);
-                card.appendChild(wrapper);
+        .balance {
+            font-size: 38px;
+            font-weight: 800;
+            margin-top: 8px;
+        }
 
-                /* =========================
-                   BOUTON RÉCOMPENSE
-                ========================= */
+        .page {
+            display: none;
+        }
 
-                const rewardButton = document.createElement("button");
+        .page.active {
+            display: block;
+        }
 
-                rewardButton.className = "btn btn-green";
+        .card {
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 15px;
+            backdrop-filter: blur(12px);
+        }
 
-                rewardButton.textContent =
-                    "🎁 RÉCUPÉRER LA RÉCOMPENSE";
+        .card h2 {
+            margin-bottom: 10px;
+        }
 
-                rewardButton.style.display = "none";
+        .card p {
+            color: #b9b6c6;
+            line-height: 1.5;
+        }
 
-                card.appendChild(rewardButton);
+        .offer {
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 20px;
+            padding: 15px;
+            margin-bottom: 18px;
+        }
 
-                /* =========================
-                   MESSAGE VIDÉO TERMINÉE
-                ========================= */
+        .offer-title {
+            font-size: 19px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
 
-                const finishedMessage =
-                    document.createElement("div");
+        .offer-reward {
+            color: #69f0ae;
+            font-weight: 700;
+            margin-bottom: 13px;
+        }
 
-                finishedMessage.className = "completed";
+        .video-wrapper {
+            width: 100%;
+            overflow: hidden;
+            border-radius: 15px;
+            background: #000;
+        }
 
-                finishedMessage.textContent =
-                    "🎉 Vidéo terminée ! Tu peux récupérer ta récompense.";
+        video {
+            display: block;
+            width: 100%;
+            max-height: 400px;
+            background: #000;
+        }
 
-                finishedMessage.style.display = "none";
+        .btn {
+            width: 100%;
+            border: 0;
+            border-radius: 14px;
+            padding: 15px;
+            margin-top: 12px;
+            font-size: 16px;
+            font-weight: 800;
+            cursor: pointer;
+        }
 
-                card.appendChild(finishedMessage);
+        .btn-green {
+            background: #22c55e;
+            color: white;
+        }
 
-                /* =========================
-                   FIN DE LA VIDÉO
-                ========================= */
+        .btn-green:disabled {
+            opacity: 0.6;
+        }
 
-                video.addEventListener("ended", () => {
+        .btn-purple {
+            background: #7c3aed;
+            color: white;
+        }
 
-                    rewardButton.style.display = "block";
+        .btn-blue {
+            background: #2563eb;
+            color: white;
+        }
 
-                    finishedMessage.style.display = "block";
+        .completed {
+            margin-top: 12px;
+            padding: 12px;
+            border-radius: 12px;
+            background: rgba(34, 197, 94, 0.12);
+            color: #69f0ae;
+            font-weight: 700;
+        }
 
-                    video.controls = false;
+        .input {
+            width: 100%;
+            border: 1px solid rgba(255,255,255,0.12);
+            background: rgba(0,0,0,0.25);
+            color: white;
+            border-radius: 13px;
+            padding: 14px;
+            margin-top: 10px;
+            outline: none;
+        }
 
-                });
+        .input:focus {
+            border-color: #7c3aed;
+        }
 
-                /* =========================
-                   RÉCUPÉRER LA RÉCOMPENSE
-                ========================= */
+        .referral-box {
+            background: rgba(124, 58, 237, 0.12);
+            border: 1px solid rgba(124, 58, 237, 0.3);
+            border-radius: 15px;
+            padding: 15px;
+            margin-top: 15px;
+            word-break: break-all;
+            color: #ddd6fe;
+        }
 
-                rewardButton.onclick = async () => {
+        .bottom-nav {
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 100;
 
-                    rewardButton.disabled = true;
+            background: rgba(18, 17, 27, 0.95);
+            backdrop-filter: blur(15px);
 
-                    rewardButton.textContent =
-                        "⏳ Récupération...";
+            border-top: 1px solid rgba(255,255,255,0.08);
 
-                    try {
+            display: flex;
+            justify-content: space-around;
 
-                        const result = await api(
-                            "/api/complete",
-                            {
-                                method: "POST",
+            padding:
+                10px
+                5px
+                calc(10px + env(safe-area-inset-bottom));
+        }
 
-                                body: JSON.stringify({
-                                    initData: initData,
-                                    offer_id: offer.id
-                                })
-                            }
+        .nav-btn {
+            background: transparent;
+            border: 0;
+            color: #8e8b99;
+            padding: 8px 5px;
+            font-size: 11px;
+            cursor: pointer;
+        }
+
+        .nav-btn.active {
+            color: #a78bfa;
+        }
+
+        .nav-icon {
+            display: block;
+            font-size: 23px;
+            margin-bottom: 3px;
+        }
+
+        .message {
+            margin-top: 12px;
+            padding: 12px;
+            border-radius: 12px;
+            display: none;
+        }
+
+        .message.success {
+            display: block;
+            background: rgba(34,197,94,0.12);
+            color: #86efac;
+        }
+
+        .message.error {
+            display: block;
+            background: rgba(239,68,68,0.12);
+            color: #fca5a5;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 30px;
+            color: #aaa;
+        }
+
+        .empty {
+            text-align: center;
+            color: #aaa;
+            padding: 25px 5px;
+        }
+
+        .big-icon {
+            font-size: 50px;
+            text-align: center;
+            margin-bottom: 12px;
+        }
+
+        .small {
+            color: #8f8b9b;
+            font-size: 13px;
+            margin-top: 8px;
+            line-height: 1.4;
+        }
+
+    </style>
+
+</head>
+
+
+<body>
+
+<div class="app">
+
+    <!-- ================================================= -->
+    <!-- HEADER -->
+    <!-- ================================================= -->
+
+    <div class="header">
+
+        <div class="logo">
+            💰 View Cash
+        </div>
+
+        <div class="subtitle">
+            Gagne des récompenses en regardant des vidéos.
+        </div>
+
+    </div>
+
+
+    <!-- ================================================= -->
+    <!-- SOLDE -->
+    <!-- ================================================= -->
+
+    <div class="balance-card">
+
+        <div class="balance-title">
+            💰 Ton solde
+        </div>
+
+        <div
+            class="balance"
+            id="balance"
+        >
+            0.00 €
+        </div>
+
+    </div>
+
+
+    <!-- ================================================= -->
+    <!-- ACCUEIL -->
+    <!-- ================================================= -->
+
+    <section
+        class="page active"
+        id="home"
+    >
+
+        <div class="card">
+
+            <div class="big-icon">
+                🚀
+            </div>
+
+            <h2>
+                Bienvenue sur View Cash
+            </h2>
+
+            <p>
+                Regarde les vidéos disponibles,
+                termine-les et récupère tes récompenses.
+            </p>
+
+        </div>
+
+        <div class="card">
+
+            <h2>
+                🎬 Comment ça marche ?
+            </h2>
+
+            <p>
+                1. Choisis une vidéo.<br><br>
+                2. Regarde la vidéo jusqu'à la fin.<br><br>
+                3. Le bouton de récompense apparaît.<br><br>
+                4. Clique sur récupérer la récompense.
+            </p>
+
+        </div>
+
+    </section>
+
+
+    <!-- ================================================= -->
+    <!-- OFFRES -->
+    <!-- ================================================= -->
+
+    <section
+        class="page"
+        id="offers"
+    >
+
+        <div class="card">
+
+            <h2>
+                🎬 Offres disponibles
+            </h2>
+
+            <p>
+                Regarde les vidéos jusqu'à la fin pour débloquer ta récompense.
+            </p>
+
+        </div>
+
+        <div
+            id="offersList"
+        >
+
+            <div class="loading">
+                Chargement...
+            </div>
+
+        </div>
+
+        <div
+            id="offersMessage"
+            class="message"
+        ></div>
+
+    </section>
+
+
+    <!-- ================================================= -->
+    <!-- PARRAINAGE -->
+    <!-- ================================================= -->
+
+    <section
+        class="page"
+        id="referral"
+    >
+
+        <div class="card">
+
+            <div class="big-icon">
+                👥
+            </div>
+
+            <h2>
+                Parrainage
+            </h2>
+
+            <p>
+                Invite tes amis sur View Cash.
+                Lorsqu'ils rejoignent l'application avec ton lien,
+                tu reçois ton bonus de parrainage.
+            </p>
+
+            <div
+                class="referral-box"
+                id="referralLink"
+            >
+                Génération du lien...
+            </div>
+
+            <button
+                class="btn btn-purple"
+                onclick="copyReferral()"
+            >
+                📋 COPIER MON LIEN
+            </button>
+
+            <button
+                class="btn btn-blue"
+                onclick="shareReferral()"
+            >
+                📤 PARTAGER
+            </button>
+
+            <div
+                id="referralMessage"
+                class="message"
+            ></div>
+
+        </div>
+
+    </section>
+
+
+    <!-- ================================================= -->
+    <!-- RETRAIT -->
+    <!-- ================================================= -->
+
+    <section
+        class="page"
+        id="withdraw"
+    >
+
+        <div class="card">
+
+            <h2>
+                💸 Retirer mes gains
+            </h2>
+
+            <p>
+                Le montant minimum de retrait est de
+                <strong>500 €</strong>.
+            </p>
+
+            <input
+                class="input"
+                id="withdrawAmount"
+                type="number"
+                min="500"
+                step="0.01"
+                placeholder="Montant (€)"
+            >
+
+            <select
+                class="input"
+                id="withdrawMethod"
+            >
+
+                <option value="">
+                    Choisir une méthode
+                </option>
+
+                <option value="PayPal">
+                    PayPal
+                </option>
+
+                <option value="Virement bancaire">
+                    Virement bancaire
+                </option>
+
+                <option value="Crypto">
+                    Crypto
+                </option>
+
+            </select>
+
+            <input
+                class="input"
+                id="withdrawDetails"
+                type="text"
+                placeholder="Email, IBAN ou adresse"
+            >
+
+            <button
+                class="btn btn-green"
+                onclick="withdraw()"
+            >
+                💸 DEMANDER LE RETRAIT
+            </button>
+
+            <div
+                id="withdrawMessage"
+                class="message"
+            ></div>
+
+        </div>
+
+    </section>
+
+
+    <!-- ================================================= -->
+    <!-- AIDE -->
+    <!-- ================================================= -->
+
+    <section
+        class="page"
+        id="help"
+    >
+
+        <div class="card">
+
+            <div class="big-icon">
+                ❓
+            </div>
+
+            <h2>
+                Aide
+            </h2>
+
+            <p>
+                Si tu rencontres un problème avec une vidéo,
+                vérifie d'abord que la vidéo est correctement chargée.
+            </p>
+
+        </div>
+
+        <div class="card">
+
+            <h2>
+                🎁 Récompenses
+            </h2>
+
+            <p>
+                Le bouton « RÉCUPÉRER LA RÉCOMPENSE »
+                apparaît uniquement lorsque la vidéo arrive à sa fin.
+            </p>
+
+        </div>
+
+        <div class="card">
+
+            <h2>
+                💸 Retraits
+            </h2>
+
+            <p>
+                Le retrait minimum est de 500 €.
+            </p>
+
+        </div>
+
+    </section>
+
+</div>
+
+
+<!-- ===================================================== -->
+<!-- NAVIGATION -->
+<!-- ===================================================== -->
+
+<div class="bottom-nav">
+
+    <button
+        class="nav-btn active"
+        onclick="showPage('home', this)"
+    >
+        <span class="nav-icon">🏠</span>
+        Accueil
+    </button>
+
+    <button
+        class="nav-btn"
+        onclick="showPage('offers', this)"
+    >
+        <span class="nav-icon">🎬</span>
+        Vidéos
+    </button>
+
+    <button
+        class="nav-btn"
+        onclick="showPage('referral', this)"
+    >
+        <span class="nav-icon">👥</span>
+        Parrainage
+    </button>
+
+    <button
+        class="nav-btn"
+        onclick="showPage('withdraw', this)"
+    >
+        <span class="nav-icon">💸</span>
+        Retrait
+    </button>
+
+    <button
+        class="nav-btn"
+        onclick="showPage('help', this)"
+    >
+        <span class="nav-icon">❓</span>
+        Aide
+    </button>
+
+</div>
+
+
+<script>
+
+    // ======================================================
+    // TELEGRAM
+    // ======================================================
+
+    const tg = window.Telegram.WebApp;
+
+    tg.ready();
+    tg.expand();
+
+    const initData = tg.initData;
+
+    let currentUser = null;
+
+
+    // ======================================================
+    // API
+    // ======================================================
+
+    async function api(
+        url,
+        options = {}
+    ) {
+
+        const response = await fetch(
+            url,
+            options
+        );
+
+        let data;
+
+        try {
+            data = await response.json();
+
+        } catch (e) {
+
+            throw new Error(
+                "Réponse du serveur invalide."
+            );
+        }
+
+        if (!response.ok) {
+
+            throw new Error(
+                data.error ||
+                "Une erreur est survenue."
+            );
+        }
+
+        return data;
+    }
+
+
+    // ======================================================
+    // MESSAGE
+    // ======================================================
+
+    function showMessage(
+        id,
+        message,
+        type
+    ) {
+
+        const element =
+            document.getElementById(id);
+
+        if (!element) return;
+
+        element.className =
+            "message " + type;
+
+        element.textContent =
+            message;
+
+    }
+
+
+    // ======================================================
+    // SOLDE
+    // ======================================================
+
+    function updateBalance() {
+
+        if (!currentUser) return;
+
+        const balance =
+            Number(
+                currentUser.balance || 0
+            );
+
+        document.getElementById(
+            "balance"
+        ).textContent =
+            balance.toFixed(2) + " €";
+    }
+
+
+    // ======================================================
+    // CHARGER UTILISATEUR
+    // ======================================================
+
+    async function loadUser() {
+
+        try {
+
+            const data = await api(
+                "/api/user",
+                {
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+
+                    body: JSON.stringify({
+                        initData: initData
+                    })
+                }
+            );
+
+            currentUser = data;
+
+            updateBalance();
+
+            updateReferral();
+
+        } catch (error) {
+
+            console.error(
+                error
+            );
+
+        }
+    }
+
+
+    // ======================================================
+    // CHARGER LES OFFRES
+    // ======================================================
+
+    async function loadOffers() {
+
+        const container =
+            document.getElementById(
+                "offersList"
+            );
+
+        container.innerHTML = `
+            <div class="loading">
+                Chargement des vidéos...
+            </div>
+        `;
+
+        try {
+
+            const data =
+                await api(
+                    "/api/offers"
+                );
+
+            if (
+                !data.offers ||
+                data.offers.length === 0
+            ) {
+
+                container.innerHTML = `
+                    <div class="card">
+                        <div class="empty">
+                            🎬 Aucune vidéo disponible pour le moment.
+                        </div>
+                    </div>
+                `;
+
+                return;
+            }
+
+            container.innerHTML = "";
+
+            data.offers.forEach(
+                offer => {
+
+                    const card =
+                        document.createElement(
+                            "div"
                         );
 
-                        if (currentUser) {
-                            currentUser.balance =
-                                result.balance;
-                        }
+                    card.className =
+                        "offer";
 
-                        updateBalance();
 
-                        rewardButton.remove();
+                    // TITRE
+                    const title =
+                        document.createElement(
+                            "div"
+                        );
+
+                    title.className =
+                        "offer-title";
+
+                    title.textContent =
+                        "🎬 " +
+                        offer.title;
+
+                    card.appendChild(
+                        title
+                    );
+
+
+                    // RÉCOMPENSE
+                    const reward =
+                        document.createElement(
+                            "div"
+                        );
+
+                    reward.className =
+                        "offer-reward";
+
+                    reward.textContent =
+                        "💰 +" +
+                        Number(
+                            offer.reward
+                        ).toFixed(2) +
+                        " €";
+
+                    card.appendChild(
+                        reward
+                    );
+
+
+                    // VIDÉO
+                    if (
+                        offer.video_url &&
+                        offer.video_url.trim() !== ""
+                    ) {
+
+                        const wrapper =
+                            document.createElement(
+                                "div"
+                            );
+
+                        wrapper.className =
+                            "video-wrapper";
+
+
+                        const video =
+                            document.createElement(
+                                "video"
+                            );
+
+                        video.controls =
+                            true;
+
+                        video.playsInline =
+                            true;
+
+                        video.preload =
+                            "metadata";
+
+                        video.src =
+                            offer.video_url;
+
+
+                        wrapper.appendChild(
+                            video
+                        );
+
+                        card.appendChild(
+                            wrapper
+                        );
+
+
+                        // MESSAGE FIN
+                        const finishedMessage =
+                            document.createElement(
+                                "div"
+                            );
+
+                        finishedMessage.className =
+                            "completed";
 
                         finishedMessage.textContent =
-                            "✅ Récompense récupérée : +" +
-                            Number(result.reward).toFixed(2) +
-                            " €";
+                            "🎉 Vidéo terminée !";
 
                         finishedMessage.style.display =
-                            "block";
+                            "none";
 
-                        showMessage(
-                            "offersMessage",
-                            "🎉 +" +
-                            Number(result.reward).toFixed(2) +
-                            " € ajoutés à ton solde !",
-                            "success"
+                        card.appendChild(
+                            finishedMessage
                         );
 
-                    } catch (error) {
 
-                        rewardButton.disabled = false;
+                        // BOUTON RÉCOMPENSE
+                        const rewardButton =
+                            document.createElement(
+                                "button"
+                            );
+
+                        rewardButton.className =
+                            "btn btn-green";
 
                         rewardButton.textContent =
                             "🎁 RÉCUPÉRER LA RÉCOMPENSE";
 
-                        showMessage(
-                            "offersMessage",
-                            "❌ " + error.message,
-                            "error"
+                        rewardButton.style.display =
+                            "none";
+
+                        card.appendChild(
+                            rewardButton
+                        );
+
+
+                        // FIN DE LA VIDÉO
+                        video.addEventListener(
+                            "ended",
+                            function() {
+
+                                finishedMessage.style.display =
+                                    "block";
+
+                                rewardButton.style.display =
+                                    "block";
+                            }
+                        );
+
+
+                        // RÉCUPÉRATION
+                        rewardButton.onclick =
+                            async function() {
+
+                                rewardButton.disabled =
+                                    true;
+
+                                rewardButton.textContent =
+                                    "⏳ Récupération...";
+
+                                try {
+
+                                    const result =
+                                        await api(
+                                            "/api/complete",
+                                            {
+                                                method:
+                                                    "POST",
+
+                                                headers: {
+                                                    "Content-Type":
+                                                        "application/json"
+                                                },
+
+                                                body:
+                                                    JSON.stringify({
+                                                        initData:
+                                                            initData,
+
+                                                        offer_id:
+                                                            offer.id
+                                                    })
+                                            }
+                                        );
+
+
+                                    currentUser.balance =
+                                        result.balance;
+
+                                    updateBalance();
+
+
+                                    rewardButton.remove();
+
+
+                                    finishedMessage.textContent =
+                                        "✅ Récompense récupérée : +" +
+                                        Number(
+                                            result.reward
+                                        ).toFixed(2) +
+                                        " €";
+
+
+                                    showMessage(
+                                        "offersMessage",
+                                        "🎉 +" +
+                                        Number(
+                                            result.reward
+                                        ).toFixed(2) +
+                                        " € ajoutés à ton solde !",
+                                        "success"
+                                    );
+
+
+                                } catch (error) {
+
+                                    rewardButton.disabled =
+                                        false;
+
+                                    rewardButton.textContent =
+                                        "🎁 RÉCUPÉRER LA RÉCOMPENSE";
+
+
+                                    showMessage(
+                                        "offersMessage",
+                                        "❌ " +
+                                        error.message,
+                                        "error"
+                                    );
+
+                                }
+
+                            };
+
+                    } else {
+
+                        const info =
+                            document.createElement(
+                                "div"
+                            );
+
+                        info.className =
+                            "small";
+
+                        info.textContent =
+                            "🎬 Vidéo indisponible pour cette offre.";
+
+                        card.appendChild(
+                            info
                         );
                     }
-                };
 
-            } else {
 
-                const info =
-                    document.createElement("div");
+                    container.appendChild(
+                        card
+                    );
 
-                info.className = "offer-info";
+                }
+            );
 
-                info.textContent =
-                    "🎬 Aucune vidéo disponible pour cette offre.";
+        } catch (error) {
 
-                card.appendChild(info);
-            }
-
-            container.appendChild(card);
-        });
-
-    } catch (error) {
-
-        container.innerHTML = `
-            <div class="card">
-                <div class="empty">
-                    ❌ Impossible de charger les vidéos.
+            container.innerHTML = `
+                <div class="card">
+                    <div class="empty">
+                        ❌ Impossible de charger les vidéos.
+                    </div>
                 </div>
-            </div>
-        `;
+            `;
+
+        }
+
     }
-}
+
+
+    // ======================================================
+    // NAVIGATION
+    // ======================================================
+
+    function showPage(
+        page,
+        button
+    ) {
+
+        document
+            .querySelectorAll(".page")
+            .forEach(
+                element => {
+                    element.classList.remove(
+                        "active"
+                    );
+                }
+            );
+
+
+        const target =
+            document.getElementById(
+                page
+            );
+
+        if (target) {
+
+            target.classList.add(
+                "active"
+            );
+        }
+
+
+        document
+            .querySelectorAll(".nav-btn")
+            .forEach(
+                element => {
+                    element.classList.remove(
+                        "active"
+                    );
+                }
+            );
+
+
+        if (button) {
+
+            button.classList.add(
+                "active"
+            );
+        }
+
+
+        if (page === "offers") {
+
+            loadOffers();
+
+        }
+
+    }
+
+
+    // ======================================================
+    // PARRAINAGE
+    // ======================================================
+
+    function updateReferral() {
+
+        if (!currentUser) return;
+
+        const link =
+            "https://t.me/ViewCashMoneyBot?start=" +
+            currentUser.user_id;
+
+        document.getElementById(
+            "referralLink"
+        ).textContent = link;
+
+    }
+
+
+    async function copyReferral() {
+
+        const element =
+            document.getElementById(
+                "referralLink"
+            );
+
+        const link =
+            element.textContent;
+
+        try {
+
+            await navigator.clipboard.writeText(
+                link
+            );
+
+            showMessage(
+                "referralMessage",
+                "✅ Lien copié !",
+                "success"
+            );
+
+        } catch (error) {
+
+            showMessage(
+                "referralMessage",
+                "❌ Impossible de copier le lien.",
+                "error"
+            );
+
+        }
+
+    }
+
+
+    function shareReferral() {
+
+        const link =
+            document.getElementById(
+                "referralLink"
+            ).textContent;
+
+        const text =
+            "💰 Rejoins View Cash et gagne des récompenses !";
+
+        const telegramUrl =
+            "https://t.me/share/url?url=" +
+            encodeURIComponent(link) +
+            "&text=" +
+            encodeURIComponent(text);
+
+        window.open(
+            telegramUrl,
+            "_blank"
+        );
+
+    }
+
+
+    // ======================================================
+    // RETRAIT
+    // ======================================================
+
+    async function withdraw() {
+
+        const amount =
+            document.getElementById(
+                "withdrawAmount"
+            ).value;
+
+        const method =
+            document.getElementById(
+                "withdrawMethod"
+            ).value;
+
+        const details =
+            document.getElementById(
+                "withdrawDetails"
+            ).value.trim();
+
+
+        if (
+            !amount ||
+            Number(amount) < 500
+        ) {
+
+            showMessage(
+                "withdrawMessage",
+                "❌ Le retrait minimum est de 500 €.",
+                "error"
+            );
+
+            return;
+        }
+
+
+        if (!method) {
+
+            showMessage(
+                "withdrawMessage",
+                "❌ Choisis une méthode de paiement.",
+                "error"
+            );
+
+            return;
+        }
+
+
+        if (!details) {
+
+            showMessage(
+                "withdrawMessage",
+                "❌ Indique tes informations de paiement.",
+                "error"
+            );
+
+            return;
+        }
+
+
+        try {
+
+            const result =
+                await api(
+                    "/api/withdraw",
+                    {
+                        method: "POST",
+
+                        headers: {
+                            "Content-Type":
+                                "application/json"
+                        },
+
+                        body:
+                            JSON.stringify({
+
+                                initData:
+                                    initData,
+
+                                amount:
+                                    Number(amount),
+
+                                method:
+                                    method,
+
+                                details:
+                                    details
+
+                            })
+                    }
+                );
+
+
+            currentUser.balance =
+                result.balance;
+
+            updateBalance();
+
+
+            document.getElementById(
+                "withdrawAmount"
+            ).value = "";
+
+            document.getElementById(
+                "withdrawDetails"
+            ).value = "";
+
+
+            showMessage(
+                "withdrawMessage",
+                "✅ " +
+                result.message,
+                "success"
+            );
+
+
+        } catch (error) {
+
+            showMessage(
+                "withdrawMessage",
+                "❌ " +
+                error.message,
+                "error"
+            );
+
+        }
+
+    }
+
+
+    // ======================================================
+    // DÉMARRAGE
+    // ======================================================
+
+    loadUser();
+
 </script>
+
+</body>
+
+</html>
