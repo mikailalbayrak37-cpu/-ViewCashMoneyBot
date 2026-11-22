@@ -1,13 +1,13 @@
 import os
-import re
 import json
 import time
 import hmac
 import hashlib
 import sqlite3
 import threading
+
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import urlparse, parse_qs, parse_qsl, unquote
 
 from telegram import (
     Update,
@@ -15,11 +15,13 @@ from telegram import (
     InlineKeyboardMarkup,
     WebAppInfo,
 )
+
 from telegram.ext import (
     Application,
     CommandHandler,
     ContextTypes,
 )
+
 
 # ============================================================
 # CONFIGURATION
@@ -32,13 +34,10 @@ WEBAPP_URL = "https://viewcashmoneybot-production.up.railway.app"
 
 DB_FILE = "bot.db"
 
-# 20 vidéos par cycle
 VIDEOS_PER_CYCLE = 20
 
-# 10 heures entre deux cycles
 COOLDOWN_SECONDS = 10 * 60 * 60
 
-# Retrait minimum
 MIN_WITHDRAWAL = 500.0
 
 
@@ -128,19 +127,34 @@ def create_user(user_id, username=None, referral_id=None):
 
     if existing:
         cursor.execute(
-            "UPDATE users SET username = ? WHERE user_id = ?",
+            """
+            UPDATE users
+            SET username = ?
+            WHERE user_id = ?
+            """,
             (username, user_id)
         )
+
     else:
         cursor.execute(
             """
-            INSERT INTO users(user_id, username, balance, referral_id)
+            INSERT INTO users(
+                user_id,
+                username,
+                balance,
+                referral_id
+            )
             VALUES (?, ?, 0, ?)
             """,
-            (user_id, username, referral_id)
+            (
+                user_id,
+                username,
+                referral_id
+            )
         )
 
         if referral_id and referral_id != user_id:
+
             cursor.execute(
                 """
                 UPDATE users
@@ -160,7 +174,10 @@ def create_user(user_id, username=None, referral_id=None):
         )
         VALUES (?, 1, ?, 0)
         """,
-        (user_id, int(time.time()))
+        (
+            user_id,
+            int(time.time())
+        )
     )
 
     connection.commit()
@@ -172,18 +189,23 @@ def get_user(user_id):
     cursor = connection.cursor()
 
     cursor.execute(
-        "SELECT * FROM users WHERE user_id = ?",
+        """
+        SELECT *
+        FROM users
+        WHERE user_id = ?
+        """,
         (user_id,)
     )
 
     user = cursor.fetchone()
+
     connection.close()
 
     return user
 
 
 # ============================================================
-# CYCLE SYSTEM
+# CYCLES
 # ============================================================
 
 def get_cycle(user_id):
@@ -200,18 +222,23 @@ def get_cycle(user_id):
     )
 
     cycle = cursor.fetchone()
+
     connection.close()
 
     return cycle
 
 
 def refresh_cycle_if_needed(user_id):
+
     connection = db()
     cursor = connection.cursor()
 
     cursor.execute(
         """
-        SELECT cycle, started_at, completed_count
+        SELECT
+            cycle,
+            started_at,
+            completed_count
         FROM user_cycles
         WHERE user_id = ?
         """,
@@ -221,6 +248,7 @@ def refresh_cycle_if_needed(user_id):
     row = cursor.fetchone()
 
     if not row:
+
         cursor.execute(
             """
             INSERT INTO user_cycles(
@@ -231,11 +259,15 @@ def refresh_cycle_if_needed(user_id):
             )
             VALUES (?, 1, ?, 0)
             """,
-            (user_id, int(time.time()))
+            (
+                user_id,
+                int(time.time())
+            )
         )
 
         connection.commit()
         connection.close()
+
         return
 
     now = int(time.time())
@@ -244,15 +276,20 @@ def refresh_cycle_if_needed(user_id):
         row["completed_count"] >= VIDEOS_PER_CYCLE
         and now >= row["started_at"] + COOLDOWN_SECONDS
     ):
+
         cursor.execute(
             """
             UPDATE user_cycles
-            SET cycle = cycle + 1,
+            SET
+                cycle = cycle + 1,
                 started_at = ?,
                 completed_count = 0
             WHERE user_id = ?
             """,
-            (now, user_id)
+            (
+                now,
+                user_id
+            )
         )
 
         connection.commit()
@@ -265,12 +302,18 @@ def refresh_cycle_if_needed(user_id):
 # ============================================================
 
 def get_active_offers():
+
     connection = db()
     cursor = connection.cursor()
 
     cursor.execute(
         """
-        SELECT id, title, url, reward, video_url
+        SELECT
+            id,
+            title,
+            url,
+            reward,
+            video_url
         FROM offers
         WHERE active = 1
         ORDER BY id ASC
@@ -278,12 +321,14 @@ def get_active_offers():
     )
 
     offers = cursor.fetchall()
+
     connection.close()
 
     return offers
 
 
 def get_available_offers(user_id):
+
     refresh_cycle_if_needed(user_id)
 
     cycle = get_cycle(user_id)
@@ -298,7 +343,12 @@ def get_available_offers(user_id):
 
     cursor.execute(
         """
-        SELECT id, title, url, reward, video_url
+        SELECT
+            id,
+            title,
+            url,
+            reward,
+            video_url
         FROM offers
         WHERE active = 1
         ORDER BY id ASC
@@ -312,6 +362,7 @@ def get_available_offers(user_id):
     result = []
 
     for offer in offers:
+
         cursor.execute(
             """
             SELECT 1
@@ -342,14 +393,16 @@ def get_available_offers(user_id):
 # ============================================================
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
     user = update.effective_user
 
     referral_id = None
 
     if context.args:
+
         try:
             referral_id = int(context.args[0])
-        except:
+        except Exception:
             referral_id = None
 
     create_user(
@@ -362,7 +415,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [
             InlineKeyboardButton(
                 "🚀 OUVRIR VIEW CASH",
-                web_app=WebAppInfo(url=WEBAPP_URL)
+                web_app=WebAppInfo(
+                    url=WEBAPP_URL
+                )
             )
         ]
     ]
@@ -372,49 +427,65 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "🎬 Regarde les vidéos disponibles.\n"
         "🎁 Termine-les pour récupérer tes récompenses.\n\n"
         "Clique ci-dessous pour ouvrir l'application.",
-        reply_markup=InlineKeyboardMarkup(keyboard)
+        reply_markup=InlineKeyboardMarkup(
+            keyboard
+        )
     )
 
 
 # ============================================================
-# ADMIN : LISTE DES OFFRES
+# ADMIN : OFFRES
 # ============================================================
 
-async def adminoffers(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def adminoffers(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE
+):
+
     if update.effective_user.id != ADMIN_ID:
         return
 
     offers = get_active_offers()
 
     if not offers:
+
         await update.message.reply_text(
             "❌ Aucune offre."
         )
+
         return
 
     message = "🎬 OFFRES ACTIVES\n\n"
 
     for offer in offers:
+
         message += (
             f"#{offer['id']} - {offer['title']}\n"
             f"💰 {offer['reward']:.2f} €\n"
             f"🎥 {offer['video_url']}\n\n"
         )
 
-    await update.message.reply_text(message)
+    await update.message.reply_text(
+        message
+    )
 
 
 # ============================================================
 # ADMIN : AJOUTER UNE OFFRE
 # ============================================================
 
-async def addoffer(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def addoffer(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE
+):
+
     if update.effective_user.id != ADMIN_ID:
         return
 
     args = context.args
 
     if len(args) < 3:
+
         await update.message.reply_text(
             "❌ Format incorrect.\n\n"
             "Utilise :\n"
@@ -422,41 +493,60 @@ async def addoffer(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "Exemple :\n"
             "/addoffer MaVideo https://google.com 0.10 https://www.tiktok.com/@user/video/123"
         )
+
         return
 
     reward_index = None
 
     for i, value in enumerate(args):
+
         try:
-            float(value.replace(",", "."))
+            float(
+                value.replace(",", ".")
+            )
+
             reward_index = i
+
             break
-        except:
+
+        except Exception:
             pass
 
     if reward_index is None or reward_index < 2:
+
         await update.message.reply_text(
             "❌ Impossible de trouver le montant."
         )
+
         return
 
-    title = " ".join(args[:reward_index - 1])
+    title = " ".join(
+        args[:reward_index - 1]
+    )
+
     url = args[reward_index - 1]
 
     try:
+
         reward = float(
             args[reward_index].replace(",", ".")
         )
-    except:
+
+    except Exception:
+
         await update.message.reply_text(
             "❌ Récompense invalide."
         )
+
         return
 
     video_url = ""
 
     if len(args) > reward_index + 1:
-        video_url = args[reward_index + 1]
+
+        video_url = args[
+            reward_index + 1
+        ]
 
     connection = db()
     cursor = connection.cursor()
@@ -481,7 +571,9 @@ async def addoffer(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
     connection.commit()
+
     offer_id = cursor.lastrowid
+
     connection.close()
 
     await update.message.reply_text(
@@ -498,35 +590,52 @@ async def addoffer(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ============================================================
 
 def validate_telegram_data(init_data):
-    if not init_data or not TOKEN:
+
+    if not init_data:
+        print("Telegram validation: initData vide")
+        return None
+
+    if not TOKEN:
+        print("Telegram validation: TELEGRAM_TOKEN manquant")
         return None
 
     try:
-        data = dict(
-            item.split("=", 1)
-            for item in init_data.split("&")
-            if "=" in item
+
+        # Telegram WebApp envoie une query string.
+        parsed_data = dict(
+            parse_qsl(
+                init_data,
+                keep_blank_values=True
+            )
         )
 
-        received_hash = data.pop("hash", None)
+        received_hash = parsed_data.pop(
+            "hash",
+            None
+        )
 
         if not received_hash:
+
+            print(
+                "Telegram validation: hash absent"
+            )
+
             return None
 
         data_check_string = "\n".join(
-            f"{key}={data[key]}"
-            for key in sorted(data)
+            f"{key}={parsed_data[key]}"
+            for key in sorted(parsed_data.keys())
         )
 
         secret_key = hmac.new(
             b"WebAppData",
-            TOKEN.encode(),
+            TOKEN.encode("utf-8"),
             hashlib.sha256
         ).digest()
 
         calculated_hash = hmac.new(
             secret_key,
-            data_check_string.encode(),
+            data_check_string.encode("utf-8"),
             hashlib.sha256
         ).hexdigest()
 
@@ -534,13 +643,51 @@ def validate_telegram_data(init_data):
             calculated_hash,
             received_hash
         ):
+
+            print(
+                "Telegram validation: hash invalide"
+            )
+
             return None
 
-        user_data = json.loads(data["user"])
+        user_string = parsed_data.get(
+            "user"
+        )
+
+        if not user_string:
+
+            print(
+                "Telegram validation: user absent"
+            )
+
+            return None
+
+        user_data = json.loads(
+            user_string
+        )
+
+        if "id" not in user_data:
+
+            print(
+                "Telegram validation: ID utilisateur absent"
+            )
+
+            return None
+
+        print(
+            "Telegram utilisateur validé:",
+            user_data["id"]
+        )
 
         return user_data
 
-    except Exception:
+    except Exception as e:
+
+        print(
+            "Erreur validation Telegram:",
+            repr(e)
+        )
+
         return None
 
 
@@ -550,7 +697,12 @@ def validate_telegram_data(init_data):
 
 class WebHandler(BaseHTTPRequestHandler):
 
-    def send_json(self, status, data):
+    def send_json(
+        self,
+        status,
+        data
+    ):
+
         body = json.dumps(
             data,
             ensure_ascii=False
@@ -573,12 +725,24 @@ class WebHandler(BaseHTTPRequestHandler):
             "*"
         )
 
+        self.send_header(
+            "Access-Control-Allow-Headers",
+            "Content-Type"
+        )
+
+        self.send_header(
+            "Access-Control-Allow-Methods",
+            "GET, POST, OPTIONS"
+        )
+
         self.end_headers()
 
         self.wfile.write(body)
 
     def read_json(self):
+
         try:
+
             length = int(
                 self.headers.get(
                     "Content-Length",
@@ -586,16 +750,23 @@ class WebHandler(BaseHTTPRequestHandler):
                 )
             )
 
-            raw = self.rfile.read(length)
+            raw = self.rfile.read(
+                length
+            )
 
             return json.loads(
                 raw.decode("utf-8")
             )
 
-        except:
+        except Exception:
+
             return {}
 
-    def get_user_from_request(self, data):
+    def get_user_from_request(
+        self,
+        data
+    ):
+
         init_data = data.get(
             "initData",
             ""
@@ -611,6 +782,7 @@ class WebHandler(BaseHTTPRequestHandler):
         return user_data
 
     def do_OPTIONS(self):
+
         self.send_response(204)
 
         self.send_header(
@@ -630,19 +802,29 @@ class WebHandler(BaseHTTPRequestHandler):
 
         self.end_headers()
 
-    # --------------------------------------------------------
+    # ========================================================
     # GET
-    # --------------------------------------------------------
+    # ========================================================
 
     def do_GET(self):
-        parsed = urlparse(self.path)
+
+        parsed = urlparse(
+            self.path
+        )
+
+        # ----------------------------------------------------
+        # PAGE
+        # ----------------------------------------------------
 
         if parsed.path == "/":
+
             try:
+
                 with open(
                     "index.htm",
                     "rb"
                 ) as file:
+
                     content = file.read()
 
                 self.send_response(200)
@@ -659,17 +841,33 @@ class WebHandler(BaseHTTPRequestHandler):
 
                 self.end_headers()
 
-                self.wfile.write(content)
+                self.wfile.write(
+                    content
+                )
 
-            except Exception:
+            except Exception as e:
+
+                print(
+                    "Erreur page:",
+                    repr(e)
+                )
+
                 self.send_json(
                     500,
-                    {"error": "Impossible de charger l'application"}
+                    {
+                        "error":
+                        "Impossible de charger l'application"
+                    }
                 )
 
             return
 
+        # ----------------------------------------------------
+        # OFFRES
+        # ----------------------------------------------------
+
         if parsed.path == "/api/offers":
+
             params = parse_qs(
                 parsed.query
             )
@@ -679,24 +877,62 @@ class WebHandler(BaseHTTPRequestHandler):
                 [""]
             )[0]
 
+            # Si initData a été envoyé non encodé,
+            # on tente également de récupérer la valeur brute.
+            if not init_data:
+
+                raw_query = parsed.query
+
+                if "initData=" in raw_query:
+
+                    init_data = raw_query.split(
+                        "initData=",
+                        1
+                    )[1]
+
+                    init_data = unquote(
+                        init_data
+                    )
+
             user_data = validate_telegram_data(
                 init_data
             )
 
             if not user_data:
+
                 self.send_json(
                     401,
-                    {"error": "Utilisateur Telegram invalide"}
+                    {
+                        "error":
+                        "Utilisateur Telegram invalide"
+                    }
                 )
+
                 return
 
-            user_id = int(
-                user_data["id"]
-            )
+            try:
+
+                user_id = int(
+                    user_data["id"]
+                )
+
+            except Exception:
+
+                self.send_json(
+                    401,
+                    {
+                        "error":
+                        "ID Telegram invalide"
+                    }
+                )
+
+                return
 
             create_user(
                 user_id,
-                user_data.get("username")
+                user_data.get(
+                    "username"
+                )
             )
 
             refresh_cycle_if_needed(
@@ -711,12 +947,19 @@ class WebHandler(BaseHTTPRequestHandler):
                 user_id
             )
 
-            now = int(time.time())
+            now = int(
+                time.time()
+            )
 
             cooldown = 0
 
             if cycle:
-                if cycle["completed_count"] >= VIDEOS_PER_CYCLE:
+
+                if (
+                    cycle["completed_count"]
+                    >= VIDEOS_PER_CYCLE
+                ):
+
                     cooldown = max(
                         0,
                         cycle["started_at"]
@@ -728,10 +971,18 @@ class WebHandler(BaseHTTPRequestHandler):
                 200,
                 {
                     "offers": offers,
-                    "cycle": cycle["cycle"] if cycle else 1,
-                    "completed": cycle["completed_count"] if cycle else 0,
-                    "total": VIDEOS_PER_CYCLE,
-                    "cooldown": cooldown
+                    "cycle":
+                        cycle["cycle"]
+                        if cycle
+                        else 1,
+                    "completed":
+                        cycle["completed_count"]
+                        if cycle
+                        else 0,
+                    "total":
+                        VIDEOS_PER_CYCLE,
+                    "cooldown":
+                        cooldown
                 }
             )
 
@@ -739,15 +990,21 @@ class WebHandler(BaseHTTPRequestHandler):
 
         self.send_json(
             404,
-            {"error": "Route introuvable"}
+            {
+                "error":
+                "Route introuvable"
+            }
         )
 
-    # --------------------------------------------------------
+    # ========================================================
     # POST
-    # --------------------------------------------------------
+    # ========================================================
 
     def do_POST(self):
-        parsed = urlparse(self.path)
+
+        parsed = urlparse(
+            self.path
+        )
 
         data = self.read_json()
 
@@ -756,15 +1013,34 @@ class WebHandler(BaseHTTPRequestHandler):
         )
 
         if not user_data:
+
             self.send_json(
                 401,
-                {"error": "Session Telegram invalide"}
+                {
+                    "error":
+                    "Session Telegram invalide"
+                }
             )
+
             return
 
-        user_id = int(
-            user_data["id"]
-        )
+        try:
+
+            user_id = int(
+                user_data["id"]
+            )
+
+        except Exception:
+
+            self.send_json(
+                401,
+                {
+                    "error":
+                    "ID Telegram invalide"
+                }
+            )
+
+            return
 
         username = user_data.get(
             "username"
@@ -775,9 +1051,9 @@ class WebHandler(BaseHTTPRequestHandler):
             username
         )
 
-        # ----------------------------------------------------
+        # ====================================================
         # USER
-        # ----------------------------------------------------
+        # ====================================================
 
         if parsed.path == "/api/user":
 
@@ -794,30 +1070,47 @@ class WebHandler(BaseHTTPRequestHandler):
                 {
                     "id": user_id,
                     "username": username,
-                    "balance": user["balance"],
-                    "cycle": cycle["cycle"] if cycle else 1,
-                    "completed": cycle["completed_count"] if cycle else 0,
-                    "total": VIDEOS_PER_CYCLE
+                    "balance":
+                        user["balance"],
+                    "cycle":
+                        cycle["cycle"]
+                        if cycle
+                        else 1,
+                    "completed":
+                        cycle["completed_count"]
+                        if cycle
+                        else 0,
+                    "total":
+                        VIDEOS_PER_CYCLE
                 }
             )
 
             return
 
-        # ----------------------------------------------------
+        # ====================================================
         # COMPLETE
-        # ----------------------------------------------------
+        # ====================================================
 
         if parsed.path == "/api/complete":
 
             try:
+
                 offer_id = int(
-                    data.get("offer_id")
+                    data.get(
+                        "offer_id"
+                    )
                 )
-            except:
+
+            except Exception:
+
                 self.send_json(
                     400,
-                    {"error": "Offre invalide"}
+                    {
+                        "error":
+                        "Offre invalide"
+                    }
                 )
+
                 return
 
             refresh_cycle_if_needed(
@@ -829,15 +1122,26 @@ class WebHandler(BaseHTTPRequestHandler):
             )
 
             if not cycle:
+
                 self.send_json(
                     400,
-                    {"error": "Cycle introuvable"}
+                    {
+                        "error":
+                        "Cycle introuvable"
+                    }
                 )
+
                 return
 
-            current_cycle = cycle["cycle"]
+            current_cycle = cycle[
+                "cycle"
+            ]
 
-            if cycle["completed_count"] >= VIDEOS_PER_CYCLE:
+            if (
+                cycle["completed_count"]
+                >= VIDEOS_PER_CYCLE
+            ):
+
                 self.send_json(
                     400,
                     {
@@ -845,6 +1149,7 @@ class WebHandler(BaseHTTPRequestHandler):
                         "Les 20 vidéos sont terminées. Attends le prochain cycle."
                     }
                 )
+
                 return
 
             connection = db()
@@ -863,12 +1168,17 @@ class WebHandler(BaseHTTPRequestHandler):
             offer = cursor.fetchone()
 
             if not offer:
+
                 connection.close()
 
                 self.send_json(
                     404,
-                    {"error": "Offre introuvable"}
+                    {
+                        "error":
+                        "Offre introuvable"
+                    }
                 )
+
                 return
 
             cursor.execute(
@@ -889,15 +1199,22 @@ class WebHandler(BaseHTTPRequestHandler):
             already = cursor.fetchone()
 
             if already:
+
                 connection.close()
 
                 self.send_json(
                     400,
-                    {"error": "Cette vidéo est déjà terminée."}
+                    {
+                        "error":
+                        "Cette vidéo est déjà terminée."
+                    }
                 )
+
                 return
 
-            now = int(time.time())
+            now = int(
+                time.time()
+            )
 
             cursor.execute(
                 """
@@ -932,7 +1249,8 @@ class WebHandler(BaseHTTPRequestHandler):
             cursor.execute(
                 """
                 UPDATE user_cycles
-                SET completed_count = completed_count + 1
+                SET completed_count =
+                    completed_count + 1
                 WHERE user_id = ?
                 """,
                 (user_id,)
@@ -949,7 +1267,9 @@ class WebHandler(BaseHTTPRequestHandler):
                 (user_id,)
             )
 
-            balance = cursor.fetchone()["balance"]
+            balance = cursor.fetchone()[
+                "balance"
+            ]
 
             cursor.execute(
                 """
@@ -970,30 +1290,43 @@ class WebHandler(BaseHTTPRequestHandler):
                 200,
                 {
                     "success": True,
-                    "reward": offer["reward"],
-                    "balance": balance,
-                    "completed": completed_count,
-                    "total": VIDEOS_PER_CYCLE
+                    "reward":
+                        offer["reward"],
+                    "balance":
+                        balance,
+                    "completed":
+                        completed_count,
+                    "total":
+                        VIDEOS_PER_CYCLE
                 }
             )
 
             return
 
-        # ----------------------------------------------------
+        # ====================================================
         # WITHDRAW
-        # ----------------------------------------------------
+        # ====================================================
 
         if parsed.path == "/api/withdraw":
 
             try:
+
                 amount = float(
-                    data.get("amount")
+                    data.get(
+                        "amount"
+                    )
                 )
-            except:
+
+            except Exception:
+
                 self.send_json(
                     400,
-                    {"error": "Montant invalide"}
+                    {
+                        "error":
+                        "Montant invalide"
+                    }
                 )
+
                 return
 
             method = str(
@@ -1011,6 +1344,7 @@ class WebHandler(BaseHTTPRequestHandler):
             ).strip()
 
             if amount < MIN_WITHDRAWAL:
+
                 self.send_json(
                     400,
                     {
@@ -1018,13 +1352,19 @@ class WebHandler(BaseHTTPRequestHandler):
                         f"Le retrait minimum est de {MIN_WITHDRAWAL:.0f} €."
                     }
                 )
+
                 return
 
             if not method or not details:
+
                 self.send_json(
                     400,
-                    {"error": "Informations de retrait manquantes."}
+                    {
+                        "error":
+                        "Informations de retrait manquantes."
+                    }
                 )
+
                 return
 
             connection = db()
@@ -1042,21 +1382,31 @@ class WebHandler(BaseHTTPRequestHandler):
             user = cursor.fetchone()
 
             if not user:
+
                 connection.close()
 
                 self.send_json(
                     400,
-                    {"error": "Utilisateur introuvable."}
+                    {
+                        "error":
+                        "Utilisateur introuvable."
+                    }
                 )
+
                 return
 
             if user["balance"] < amount:
+
                 connection.close()
 
                 self.send_json(
                     400,
-                    {"error": "Solde insuffisant."}
+                    {
+                        "error":
+                        "Solde insuffisant."
+                    }
                 )
+
                 return
 
             cursor.execute(
@@ -1108,7 +1458,10 @@ class WebHandler(BaseHTTPRequestHandler):
 
         self.send_json(
             404,
-            {"error": "Route introuvable"}
+            {
+                "error":
+                "Route introuvable"
+            }
         )
 
 
@@ -1117,6 +1470,7 @@ class WebHandler(BaseHTTPRequestHandler):
 # ============================================================
 
 def run_server():
+
     port = int(
         os.getenv(
             "PORT",
@@ -1125,7 +1479,10 @@ def run_server():
     )
 
     server = ThreadingHTTPServer(
-        ("0.0.0.0", port),
+        (
+            "0.0.0.0",
+            port
+        ),
         WebHandler
     )
 
@@ -1141,7 +1498,9 @@ def run_server():
 # ============================================================
 
 def main():
+
     if not TOKEN:
+
         raise RuntimeError(
             "TELEGRAM_TOKEN manquant dans Railway."
         )
