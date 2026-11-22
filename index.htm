@@ -1,801 +1,202 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-
-<meta charset="UTF-8">
-
-<meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0"
->
-
-<title>ViewCash</title>
-
-<script src="https://telegram.org/js/telegram-web-app.js"></script>
-
-<style>
-
-* {
-    box-sizing: border-box;
-}
-
-body {
-    margin: 0;
-    font-family: Arial, sans-serif;
-    background:
-        radial-gradient(
-            circle at top,
-            #18243a,
-            #070b12 60%
-        );
-    color: white;
-    min-height: 100vh;
-}
-
-.container {
-    max-width: 600px;
-    margin: auto;
-    padding: 20px;
-    padding-bottom: 100px;
-}
-
-.header {
-    text-align: center;
-    padding: 20px 0;
-}
-
-.logo {
-    font-size: 35px;
-    font-weight: bold;
-}
-
-.subtitle {
-    color: #aeb8c8;
-    margin-top: 8px;
-}
-
-.card {
-    background: rgba(255,255,255,.08);
-    border: 1px solid rgba(255,255,255,.12);
-    backdrop-filter: blur(15px);
-    border-radius: 20px;
-    padding: 20px;
-    margin-bottom: 15px;
-}
-
-.balance {
-    text-align: center;
-}
-
-.balance-value {
-    font-size: 38px;
-    font-weight: bold;
-    margin: 10px 0;
-}
-
-.button {
-    width: 100%;
-    border: none;
-    border-radius: 15px;
-    padding: 16px;
-    margin-top: 10px;
-    font-size: 16px;
-    font-weight: bold;
-    cursor: pointer;
-    background: #2196f3;
-    color: white;
-}
-
-.button.secondary {
-    background: rgba(255,255,255,.1);
-}
-
-.button.green {
-    background: #16a34a;
-}
-
-.button.red {
-    background: #dc2626;
-}
-
-.offer {
-    padding: 16px;
-    background: rgba(255,255,255,.06);
-    border-radius: 15px;
-    margin-bottom: 12px;
-}
-
-.offer-title {
-    font-size: 18px;
-    font-weight: bold;
-}
-
-.reward {
-    color: #4ade80;
-    font-weight: bold;
-    margin-top: 6px;
-}
-
-.offer a {
-    display: block;
-    text-decoration: none;
-    text-align: center;
-}
-
-input, select {
-    width: 100%;
-    padding: 15px;
-    margin-top: 10px;
-    border: none;
-    border-radius: 12px;
-    background: rgba(255,255,255,.1);
-    color: white;
-}
-
-.nav {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    background: rgba(5,8,15,.95);
-    border-top: 1px solid rgba(255,255,255,.1);
-    display: flex;
-    justify-content: space-around;
-    padding: 10px;
-}
-
-.nav button {
-    border: none;
-    background: transparent;
-    color: #aeb8c8;
-    font-size: 12px;
-}
-
-.nav button.active {
-    color: #2196f3;
-}
-
-.page {
-    display: none;
-}
-
-.page.active {
-    display: block;
-}
-
-.small {
-    color: #aeb8c8;
-    font-size: 14px;
-}
-
-.success {
-    color: #4ade80;
-}
-
-</style>
-
-</head>
-
-<body>
-
-<div class="container">
-
-    <div class="header">
-        <div class="logo">💰 ViewCash</div>
-        <div class="subtitle">
-            Gagne des récompenses avec les offres disponibles.
-        </div>
-    </div>
-
-
-    <!-- ACCUEIL -->
-
-    <div id="home" class="page active">
-
-        <div class="card balance">
-
-            <div class="small">
-                Mon solde
-            </div>
-
-            <div
-                class="balance-value"
-                id="balance"
-            >
-                0.00 €
-            </div>
-
-            <button
-                class="button green"
-                onclick="showPage('withdraw')"
-            >
-                💸 Retirer mon argent
-            </button>
-
-        </div>
-
-
-        <div class="card">
-
-            <h2>🎬 Gagner de l'argent</h2>
-
-            <p class="small">
-                Réalise les offres disponibles
-                pour recevoir tes récompenses.
-            </p>
-
-            <button
-                class="button"
-                onclick="showPage('offers')"
-            >
-                🎬 Voir les offres
-            </button>
-
-        </div>
-
-    </div>
-
-
-    <!-- OFFRES -->
-
-    <div id="offers" class="page">
-
-        <div class="card">
-
-            <h2>🎬 Vidéos / Offres</h2>
-
-            <div id="offersList">
-                Chargement...
-            </div>
-
-        </div>
-
-    </div>
-
-
-    <!-- PARRAINAGE -->
-
-    <div id="referral" class="page">
-
-        <div class="card">
-
-            <h2>👥 Parrainage</h2>
-
-            <p>
-                Invite tes amis et gagne des récompenses.
-            </p>
-
-            <input
-                id="referralLink"
-                readonly
-            >
-
-            <button
-                class="button"
-                onclick="copyReferral()"
-            >
-                📋 Copier mon lien
-            </button>
-
-        </div>
-
-    </div>
-
-
-    <!-- RETRAIT -->
-
-    <div id="withdraw" class="page">
-
-        <div class="card">
-
-            <h2>💸 Retrait</h2>
-
-            <p class="small">
-                Retrait minimum : 500 €
-            </p>
-
-            <input
-                id="withdrawAmount"
-                type="number"
-                placeholder="Montant"
-                min="5"
-                step="0.01"
-            >
-
-            <select id="withdrawMethod">
-
-                <option value="paypal">
-                    PayPal
-                </option>
-
-                <option value="bank">
-                    Virement bancaire
-                </option>
-
-            </select>
-
-            <input
-                id="withdrawDetails"
-                placeholder="Email ou informations de paiement"
-            >
-
-            <button
-                class="button green"
-                onclick="withdraw()"
-            >
-                💸 Demander le retrait
-            </button>
-
-            <div id="withdrawMessage"></div>
-
-        </div>
-
-    </div>
-
-
-    <!-- AIDE -->
-
-    <div id="help" class="page">
-
-        <div class="card">
-
-            <h2>❓ Aide</h2>
-
-            <p>
-                🎬 Consulte les offres disponibles.
-            </p>
-
-            <p>
-                💰 Réalise une offre pour recevoir
-                la récompense prévue.
-            </p>
-
-            <p>
-                👥 Invite tes amis avec ton lien
-                de parrainage.
-            </p>
-
-            <p>
-                💸 Le retrait minimum est de 5 €.
-            </p>
-
-        </div>
-
-    </div>
-
-</div>
-
-
-<!-- NAVIGATION -->
-
-<div class="nav">
-
-    <button
-        id="nav-home"
-        class="active"
-        onclick="showPage('home')"
-    >
-        🏠<br>
-        Accueil
-    </button>
-
-    <button
-        id="nav-offers"
-        onclick="showPage('offers')"
-    >
-        🎬<br>
-        Offres
-    </button>
-
-    <button
-        id="nav-referral"
-        onclick="showPage('referral')"
-    >
-        👥<br>
-        Parrainage
-    </button>
-
-    <button
-        id="nav-withdraw"
-        onclick="showPage('withdraw')"
-    >
-        💸<br>
-        Retrait
-    </button>
-
-    <button
-        id="nav-help"
-        onclick="showPage('help')"
-    >
-        ❓<br>
-        Aide
-    </button>
-
-</div>
-
-
 <script>
-
-const tg = window.Telegram.WebApp;
-
-tg.ready();
-tg.expand();
-
-const initData = tg.initData;
-
-let currentBalance = 0;
-
-
-// =========================
-// NAVIGATION
-// =========================
-
-function showPage(page) {
-
-    document
-        .querySelectorAll(".page")
-        .forEach(p => {
-            p.classList.remove("active");
-        });
-
-    document
-        .getElementById(page)
-        .classList.add("active");
-
-
-    document
-        .querySelectorAll(".nav button")
-        .forEach(b => {
-            b.classList.remove("active");
-        });
-
-    const nav = document.getElementById(
-        "nav-" + page
-    );
-
-    if (nav) {
-        nav.classList.add("active");
-    }
-
-    if (page === "offers") {
-        loadOffers();
-    }
-}
-
-
-// =========================
-// API
-// =========================
-
-async function api(url, data = {}) {
-
-    const response = await fetch(
-        url,
-        {
-            method: "POST",
-
-            headers: {
-                "Content-Type": "application/json"
-            },
-
-            body: JSON.stringify({
-                ...data,
-                initData: initData
-            })
-        }
-    );
-
-    return await response.json();
-}
-
-
-// =========================
-// USER
-// =========================
-
-async function loadUser() {
-
-    try {
-
-        const data = await api(
-            "/api/user"
-        );
-
-        if (data.error) {
-            console.log(data.error);
-            return;
-        }
-
-        currentBalance = data.balance || 0;
-
-        document.getElementById(
-            "balance"
-        ).textContent =
-            Number(currentBalance).toFixed(2)
-            + " €";
-
-
-        const userId = data.user_id;
-
-        document.getElementById(
-            "referralLink"
-        ).value =
-            "https://t.me/ViewCashMoneyBot?start="
-            + userId;
-
-    } catch (error) {
-
-        console.log(error);
-
-    }
-}
-
-
-// =========================
-// OFFRES
-// =========================
-
 async function loadOffers() {
+    const container = document.getElementById("offersList");
 
-    const box =
-        document.getElementById(
-            "offersList"
-        );
+    if (!container) return;
 
-    box.innerHTML = "Chargement...";
+    container.innerHTML = `
+        <div class="loading">
+            Chargement des vidéos...
+        </div>
+    `;
 
     try {
+        const data = await api("/api/offers");
 
-        const response = await fetch(
-            "/api/offers"
-        );
-
-        const data =
-            await response.json();
-
-        if (!data.offers.length) {
-
-            box.innerHTML =
-                "<p class='small'>"
-                + "Aucune offre disponible pour le moment."
-                + "</p>";
-
+        if (!data.offers || data.offers.length === 0) {
+            container.innerHTML = `
+                <div class="card">
+                    <div class="empty">
+                        🎬 Aucune vidéo disponible pour le moment.
+                    </div>
+                </div>
+            `;
             return;
         }
 
-        box.innerHTML = "";
+        container.innerHTML = "";
 
-        data.offers.forEach(
-            offer => {
+        data.offers.forEach(offer => {
 
-                const div =
-                    document.createElement(
-                        "div"
-                    );
+            const card = document.createElement("div");
+            card.className = "offer";
 
-                div.className =
-                    "offer";
+            const title = document.createElement("div");
+            title.className = "offer-title";
+            title.textContent = "🎬 " + offer.title;
 
-                div.innerHTML = `
+            const reward = document.createElement("div");
+            reward.className = "offer-reward";
+            reward.textContent =
+                "💰 +" + Number(offer.reward).toFixed(2) + " €";
 
-                    <div class="offer-title">
-                        ${escapeHtml(offer.title)}
-                    </div>
+            card.appendChild(title);
+            card.appendChild(reward);
 
-                    <div class="reward">
-                        +${Number(offer.reward).toFixed(2)} €
-                    </div>
+            /* =========================
+               VIDEO
+            ========================= */
 
-                    <a
-                        href="${escapeAttr(offer.url)}"
-                        target="_blank"
-                        class="button"
-                    >
-                        🚀 Ouvrir l'offre
-                    </a>
+            if (offer.video_url && offer.video_url.trim() !== "") {
 
-                    <button
-                        class="button green"
-                        onclick="completeOffer(${offer.id})"
-                    >
-                        ✅ J'ai terminé
-                    </button>
+                const wrapper = document.createElement("div");
+                wrapper.className = "video-wrapper";
 
-                `;
+                const video = document.createElement("video");
 
-                box.appendChild(div);
+                video.controls = true;
+                video.playsInline = true;
+                video.preload = "metadata";
+                video.src = offer.video_url;
 
+                wrapper.appendChild(video);
+                card.appendChild(wrapper);
+
+                /* =========================
+                   BOUTON RÉCOMPENSE
+                ========================= */
+
+                const rewardButton = document.createElement("button");
+
+                rewardButton.className = "btn btn-green";
+
+                rewardButton.textContent =
+                    "🎁 RÉCUPÉRER LA RÉCOMPENSE";
+
+                rewardButton.style.display = "none";
+
+                card.appendChild(rewardButton);
+
+                /* =========================
+                   MESSAGE VIDÉO TERMINÉE
+                ========================= */
+
+                const finishedMessage =
+                    document.createElement("div");
+
+                finishedMessage.className = "completed";
+
+                finishedMessage.textContent =
+                    "🎉 Vidéo terminée ! Tu peux récupérer ta récompense.";
+
+                finishedMessage.style.display = "none";
+
+                card.appendChild(finishedMessage);
+
+                /* =========================
+                   FIN DE LA VIDÉO
+                ========================= */
+
+                video.addEventListener("ended", () => {
+
+                    rewardButton.style.display = "block";
+
+                    finishedMessage.style.display = "block";
+
+                    video.controls = false;
+
+                });
+
+                /* =========================
+                   RÉCUPÉRER LA RÉCOMPENSE
+                ========================= */
+
+                rewardButton.onclick = async () => {
+
+                    rewardButton.disabled = true;
+
+                    rewardButton.textContent =
+                        "⏳ Récupération...";
+
+                    try {
+
+                        const result = await api(
+                            "/api/complete",
+                            {
+                                method: "POST",
+
+                                body: JSON.stringify({
+                                    initData: initData,
+                                    offer_id: offer.id
+                                })
+                            }
+                        );
+
+                        if (currentUser) {
+                            currentUser.balance =
+                                result.balance;
+                        }
+
+                        updateBalance();
+
+                        rewardButton.remove();
+
+                        finishedMessage.textContent =
+                            "✅ Récompense récupérée : +" +
+                            Number(result.reward).toFixed(2) +
+                            " €";
+
+                        finishedMessage.style.display =
+                            "block";
+
+                        showMessage(
+                            "offersMessage",
+                            "🎉 +" +
+                            Number(result.reward).toFixed(2) +
+                            " € ajoutés à ton solde !",
+                            "success"
+                        );
+
+                    } catch (error) {
+
+                        rewardButton.disabled = false;
+
+                        rewardButton.textContent =
+                            "🎁 RÉCUPÉRER LA RÉCOMPENSE";
+
+                        showMessage(
+                            "offersMessage",
+                            "❌ " + error.message,
+                            "error"
+                        );
+                    }
+                };
+
+            } else {
+
+                const info =
+                    document.createElement("div");
+
+                info.className = "offer-info";
+
+                info.textContent =
+                    "🎬 Aucune vidéo disponible pour cette offre.";
+
+                card.appendChild(info);
             }
-        );
+
+            container.appendChild(card);
+        });
 
     } catch (error) {
 
-        box.innerHTML =
-            "<p>❌ Impossible de charger les offres.</p>";
-
+        container.innerHTML = `
+            <div class="card">
+                <div class="empty">
+                    ❌ Impossible de charger les vidéos.
+                </div>
+            </div>
+        `;
     }
 }
-
-
-// =========================
-// TERMINER OFFRE
-// =========================
-
-async function completeOffer(id) {
-
-    const data =
-        await api(
-            "/api/complete",
-            {
-                offer_id: id
-            }
-        );
-
-    if (data.error) {
-
-        alert(data.error);
-
-        return;
-    }
-
-    currentBalance =
-        data.balance;
-
-    document.getElementById(
-        "balance"
-    ).textContent =
-        Number(currentBalance).toFixed(2)
-        + " €";
-
-    alert(
-        "🎉 +" +
-        Number(data.reward).toFixed(2) +
-        " € ajoutés à ton solde !"
-    );
-
-    loadOffers();
-}
-
-
-// =========================
-// RETRAIT
-// =========================
-
-async function withdraw() {
-
-    const amount =
-        Number(
-            document.getElementById(
-                "withdrawAmount"
-            ).value
-        );
-
-    const method =
-        document.getElementById(
-            "withdrawMethod"
-        ).value;
-
-    const details =
-        document.getElementById(
-            "withdrawDetails"
-        ).value.trim();
-
-    const message =
-        document.getElementById(
-            "withdrawMessage"
-        );
-
-    if (amount < 5) {
-
-        message.innerHTML =
-            "<p style='color:#f87171'>"
-            + "❌ Minimum 5 €."
-            + "</p>";
-
-        return;
-    }
-
-    if (!details) {
-
-        message.innerHTML =
-            "<p style='color:#f87171'>"
-            + "❌ Remplis les informations de paiement."
-            + "</p>";
-
-        return;
-    }
-
-    const data =
-        await api(
-            "/api/withdraw",
-            {
-                amount,
-                method,
-                details
-            }
-        );
-
-    if (data.error) {
-
-        message.innerHTML =
-            "<p style='color:#f87171'>"
-            + data.error
-            + "</p>";
-
-        return;
-    }
-
-    message.innerHTML =
-        "<p class='success'>"
-        + "✅ Demande envoyée !"
-        + "</p>";
-
-    document.getElementById(
-        "withdrawAmount"
-    ).value = "";
-
-    document.getElementById(
-        "withdrawDetails"
-    ).value = "";
-
-    loadUser();
-}
-
-
-// =========================
-// PARRAINAGE
-// =========================
-
-function copyReferral() {
-
-    const input =
-        document.getElementById(
-            "referralLink"
-        );
-
-    navigator.clipboard.writeText(
-        input.value
-    );
-
-    alert(
-        "✅ Lien copié !"
-    );
-}
-
-
-// =========================
-// SECURITE HTML
-// =========================
-
-function escapeHtml(text) {
-
-    const div =
-        document.createElement(
-            "div"
-        );
-
-    div.textContent = text;
-
-    return div.innerHTML;
-}
-
-
-function escapeAttr(text) {
-
-    return String(text)
-        .replace(/"/g, "&quot;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;");
-}
-
-
-// =========================
-// DEMARRAGE
-// =========================
-
-loadUser();
-
 </script>
-
-</body>
-</html>
